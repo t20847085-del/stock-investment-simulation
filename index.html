@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Investment Simulation Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="game-container">
+        <div id="quick-help-buttons" class="quick-help-buttons">
+            <button onclick="openLibraryFromGame()">LIBRARY</button>
+            <button onclick="openHowToPlayFromGame()">HOW TO PLAY</button>
+        </div>
+        <!-- Page 1: Start Screen -->
+        <div id="start-screen" class="screen active">
+            <h1>STOCK INVESTMENT<br>SIMULATION GAME</h1>
+
+            <div class="main-icon">📈</div>
+
+            <button onclick="startGame()">START GAME</button>
+            <button onclick="openLibrary()">LIBRARY</button>
+            <button onclick="openHowToPlay()">HOW TO PLAY</button>
+            <button onclick="exitGame()">EXIT</button>
+        </div>
+
+        <!-- Page 2: Character Selection Screen -->
+        <div id="character-screen" class="screen">
+            <h2>Choose Your Investor</h2>
+
+            <p class="page-intro">
+                Choose one investor character. Each character has a different initial capital,
+                investment style, victory condition, and failure condition.
+            </p>
+
+            <div class="character-grid">
+
+                <div class="character-card">
+                    <div class="avatar">🎓</div>
+                    <h3>College Student</h3>
+                    <p><strong>Initial Capital:</strong> $5,000</p>
+                    <p><strong>Style:</strong> High risk, high ambition</p>
+                    <button onclick="selectCharacter('student')">Select</button>
+                </div>
+
+                <div class="character-card">
+                    <div class="avatar">💼</div>
+                    <h3>Entrepreneur</h3>
+                    <p><strong>Initial Capital:</strong> $40,000</p>
+                    <p><strong>Style:</strong> Aggressive growth</p>
+                    <button onclick="selectCharacter('entrepreneur')">Select</button>
+                </div>
+
+                <div class="character-card">
+                    <div class="avatar">🏦</div>
+                    <h3>Banker</h3>
+                    <p><strong>Initial Capital:</strong> $50,000</p>
+                    <p><strong>Style:</strong> Stable monthly profit</p>
+                    <button onclick="selectCharacter('banker')">Select</button>
+                </div>
+
+                <div class="character-card">
+                    <div class="avatar">👴</div>
+                    <h3>Retiree</h3>
+                    <p><strong>Initial Capital:</strong> $30,000</p>
+                    <p><strong>Style:</strong> Diversified protection</p>
+                    <button onclick="selectCharacter('retiree')">Select</button>
+                </div>
+
+                <div class="character-card">
+                    <div class="avatar">🧭</div>
+                    <h3>Sector Specialist</h3>
+                    <p><strong>Initial Capital:</strong> $30,000</p>
+                    <p><strong>Style:</strong> Focused industry expertise</p>
+                    <button onclick="selectCharacter('sector_specialist')">Select</button>
+                </div>
+
+            </div>
+
+            <button class="back-button" onclick="goBackToStart()">BACK</button>
+        </div>
+
+        <!-- Page 3: Character Detail Screen -->
+        <div id="character-detail-screen" class="screen">
+            <h2>Investor Profile</h2>
+
+            <div class="detail-card">
+                <div id="detail-avatar" class="detail-avatar">🎓</div>
+
+                <h3 id="detail-name">Character Name</h3>
+
+                <p id="detail-description" class="detail-description">
+                    Character description will appear here.
+                </p>
+
+                <div class="detail-info-grid">
+                    <div class="detail-info-box">
+                        <h4>Initial Capital</h4>
+                        <p id="detail-capital">$0</p>
+                    </div>
+
+                    <div class="detail-info-box">
+                        <h4>Risk Style</h4>
+                        <p id="detail-risk">Risk style</p>
+                    </div>
+
+                    <div class="detail-info-box">
+                        <h4>Victory Condition</h4>
+                        <p id="detail-victory">Victory condition</p>
+                    </div>
+
+                    <div class="detail-info-box">
+                        <h4>Failure Condition</h4>
+                        <p id="detail-failure">Failure condition</p>
+                    </div>
+                </div>
+
+                <div class="detail-note">
+                    <strong>Game Meaning:</strong>
+                    <span id="detail-game-meaning">Game meaning will appear here.</span>
+                </div>
+
+                <div id="specialist-sector-panel" class="specialist-sector-panel" style="display: none;">
+                    <h3>Choose Your Specialist Sector</h3>
+
+                    <p>
+                        As a Sector Specialist, you must choose one industry that represents your expertise.
+                        You may hold cash when your sector is risky, but your total investment in other sectors
+                        cannot exceed 30% of current total wealth.
+                    </p>
+
+                    <div class="specialist-sector-buttons">
+                        <button id="specialist-sector-Technology"
+                            onclick="selectSpecialistSector('Technology')">Technology</button>
+                        <button id="specialist-sector-Finance"
+                            onclick="selectSpecialistSector('Finance')">Finance</button>
+                        <button id="specialist-sector-Energy" onclick="selectSpecialistSector('Energy')">Energy</button>
+                        <button id="specialist-sector-Consumer"
+                            onclick="selectSpecialistSector('Consumer')">Consumer</button>
+                    </div>
+
+                    <p id="specialist-selected-sector" class="specialist-selected-sector">
+                        No sector selected.
+                    </p>
+                </div>
+
+            </div>
+
+            <div class="button-row">
+                <button onclick="confirmCharacter()">CONFIRM</button>
+                <button onclick="goBackToCharacterSelection()">BACK</button>
+            </div>
+        </div>
+        <!-- Market Overview Screen -->
+        <div id="market-overview-screen" class="screen">
+            <h2>Market Overview</h2>
+
+            <p class="page-intro">
+                Before entering the investment dashboard, review the available stocks in the game market.
+                The game contains 10 stocks from 4 sectors. Stocks in the same sector share a sector factor,
+                while each stock still has its own parameters and random shocks.
+            </p>
+
+            <div class="market-summary-grid">
+                <div class="market-summary-card">
+                    <h3>Stocks</h3>
+                    <p>10 stocks in total</p>
+                </div>
+
+                <div class="market-summary-card">
+                    <h3>Sectors</h3>
+                    <p>Technology 3, Finance 2, Energy 2, Consumer 3</p>
+                </div>
+
+                <div class="market-summary-card">
+                    <h3>Core Model</h3>
+                    <p>Event-driven Sector Jump-Factor-GRW model</p>
+                </div>
+            </div>
+
+            <h3 class="section-title">Available Stocks</h3>
+
+            <div id="stock-card-grid" class="stock-card-grid">
+                <!-- Stock cards will be generated by JavaScript -->
+            </div>
+
+            <p class="market-note">
+                Note: Initial prices are simplified game prices. They are not real market prices.
+            </p>
+
+            <div class="button-row">
+                <button onclick="enterDashboard()">START INVESTING</button>
+                <button onclick="goBackToCharacterDetail()">BACK</button>
+            </div>
+        </div>
+
+
+        <!-- Stock Detail Screen -->
+        <div id="stock-detail-screen" class="screen">
+            <h2>Stock Detail</h2>
+
+            <div class="stock-detail-card simplified-stock-detail">
+                <img id="stock-detail-logo" class="stock-detail-logo" src="" alt="Stock logo">
+
+                <h3 id="stock-detail-name">Stock Name</h3>
+                <p id="stock-detail-ticker" class="stock-detail-ticker">Ticker</p>
+
+                <div class="stock-detail-info-grid">
+                    <div class="stock-detail-info-box">
+                        <h4>Sector</h4>
+                        <p id="stock-detail-sector">Sector</p>
+                    </div>
+
+                    <div class="stock-detail-info-box">
+                        <h4>Current Game Price</h4>
+                        <p id="stock-detail-price">$0</p>
+                    </div>
+
+                    <div class="stock-detail-info-box">
+                        <h4>Risk Level</h4>
+                        <p id="stock-detail-risk">Risk</p>
+                    </div>
+
+                    <div class="stock-detail-info-box">
+                        <h4>Game Role</h4>
+                        <p id="stock-detail-role">Game role</p>
+                    </div>
+                </div>
+
+                <h3 class="section-title">Investment Profile</h3>
+
+                <div class="stock-profile-grid">
+                    <div class="stock-profile-box">
+                        <h4>Company Type</h4>
+                        <p id="stock-detail-company-type">Company type will appear here.</p>
+                    </div>
+
+                    <div class="stock-profile-box">
+                        <h4>Risk Profile</h4>
+                        <p id="stock-detail-risk-profile">Risk profile will appear here.</p>
+                    </div>
+
+                    <div class="stock-profile-box">
+                        <h4>Market Sensitivity</h4>
+                        <p id="stock-detail-market-sensitivity">Market sensitivity will appear here.</p>
+                    </div>
+
+                    <div class="stock-profile-box">
+                        <h4>Sector Sensitivity</h4>
+                        <p id="stock-detail-sector-sensitivity">Sector sensitivity will appear here.</p>
+                    </div>
+
+                    <div class="stock-profile-box">
+                        <h4>Event Sensitivity</h4>
+                        <p id="stock-detail-event-sensitivity">Event sensitivity will appear here.</p>
+                    </div>
+
+                    <div class="stock-profile-box">
+                        <h4>Suitable Investor</h4>
+                        <p id="stock-detail-suitable-investor">Suitable investor will appear here.</p>
+                    </div>
+                </div>
+
+                <p class="market-note">
+                    Mathematical parameters are moved to the Model Library.
+                    This page only gives player-friendly investment information.
+                </p>
+            </div>
+
+            <button onclick="goBackToMarketOverview()">BACK</button>
+        </div>
+
+        <!-- Event Selection Screen -->
+        <div id="event-selection-screen" class="screen">
+            <h2 id="event-selection-title">Month 1 Event Selection</h2>
+
+
+            <p class="page-intro">
+                Read the market announcements to assess the current
+                economic environment. Then select one of four mystery
+                cards to reveal a major event that may affect stock prices.
+                The true market state remains hidden.
+            </p>
+
+
+            <div class="event-header-panel">
+                <div class="event-header-card">
+                    <h3>Current Month</h3>
+                    <p id="event-current-month">Month 1</p>
+                </div>
+
+                <div class="event-header-card">
+                    <h3>Rule</h3>
+                    <p>4 State-Dependent Mystery Events</p>
+                </div>
+
+                <div class="event-header-card highlight-card">
+                    <h3>Action</h3>
+                    <p>Pick 1 of 4 cards</p>
+                </div>
+            </div>
+
+            <!-- Market Announcements -->
+            <div class="market-announcement-section">
+                <div class="market-announcement-heading">
+                    <h3>Market Intelligence</h3>
+                    <p>
+                        Review the latest economic and company announcements.
+                        These reports may provide clues about market conditions,
+                        but they do not reveal the true market state.
+                    </p>
+                </div>
+
+                <div id="market-announcement-list" class="market-announcement-list">
+                    <!-- Generated by JavaScript -->
+                </div>
+            </div>
+
+            <div id="event-card-grid" class="event-card-grid">
+                <!-- Mystery event cards will be generated by JavaScript -->
+            </div>
+
+            <div id="event-result-panel" class="event-result-panel">
+                <div class="event-result-badge">EVENT REVEALED</div>
+
+                <h3 id="event-result-name">Event Name</h3>
+
+                <p id="event-result-description">
+                    Event description will appear here.
+                </p>
+
+                <div class="event-impact-box">
+                    <h4>Industry Hint</h4>
+                    <p id="event-result-impact">
+                        The event impact will appear here.
+                    </p>
+                </div>
+            </div>
+
+            <div class="button-row">
+                <button id="event-continue-button" onclick="goToInitialPurchase()" disabled>
+                    BUILD INITIAL PORTFOLIO
+                </button>
+                <button id="event-reset-button" onclick="resetEventSelection()">VIEW SAME CARDS</button>
+                <button onclick="goBackToMarketOverview()">BACK TO MARKET</button>
+            </div>
+        </div>
+        <!-- Initial Stock Purchase Screen -->
+        <div id="initial-purchase-screen" class="screen">
+            <h2 id="purchase-title">Initial Stock Purchase</h2>
+
+            <p class="page-intro">
+                Drag the sliders to choose how many shares to buy.
+                You do not need to invest all your money. Keeping cash can reduce risk.
+            </p>
+
+            <div class="purchase-top-panel">
+                <div class="purchase-info-card">
+                    <h3>Investor</h3>
+                    <p id="purchase-investor-name">Investor Name</p>
+                </div>
+
+                <div class="purchase-info-card">
+                    <h3>Initial Capital</h3>
+                    <p id="purchase-initial-capital">$0</p>
+                </div>
+
+                <div class="purchase-info-card highlight-card">
+                    <h3>Remaining Cash</h3>
+                    <p id="purchase-remaining-cash">$0</p>
+                </div>
+            </div>
+            <div class="wealth-manager-panel">
+                <div class="wealth-manager-left">
+                    <div class="wealth-manager-icon">🧑‍💼</div>
+
+                    <div>
+                        <h3>Wealth Manager Service</h3>
+                        <p>
+                            Entrust your monthly portfolio allocation to a professional wealth manager.
+                            The manager will build an event-based portfolio according to your investor role
+                            and the current market event.
+                        </p>
+
+                        <div class="wealth-manager-tags">
+                            <span>Event-based allocation</span>
+                            <span>Role-based risk control</span>
+                            <span>Commission: 0.5%</span>
+                        </div>
+
+                        <p id="wealth-manager-status" class="wealth-manager-status">
+                            The wealth manager is available this month.
+                        </p>
+                    </div>
+                </div>
+
+                <button id="wealth-manager-button" onclick="applyWealthManagerPortfolio()">
+                    ENTRUST TO WEALTH MANAGER
+                </button>
+            </div>
+            <div class="purchase-summary-bar">
+                <div>
+                    <span>Total Stock Value</span>
+                    <strong id="purchase-total-stock-value">$0</strong>
+                </div>
+
+                <div>
+                    <span>Selected Stocks</span>
+                    <strong id="purchase-selected-stock-count">0</strong>
+                </div>
+
+                <div>
+                    <span>Total Wealth</span>
+                    <strong id="purchase-total-wealth">$0</strong>
+                </div>
+            </div>
+
+            <h3 class="section-title">Choose Shares</h3>
+
+            <div id="purchase-stock-list" class="purchase-stock-list">
+                <!-- Purchase cards will be generated by JavaScript -->
+            </div>
+
+            <p id="purchase-warning" class="purchase-warning"></p>
+
+            <div class="button-row">
+                <button onclick="continueToPortfolioReview()">CONTINUE TO REVIEW</button>
+                <button onclick="resetInitialPurchase()">RESET</button>
+                <button onclick="goBackToMarketOverview()">BACK TO MARKET</button>
+            </div>
+        </div>
+        <!-- Portfolio Review Screen -->
+        <div id="portfolio-review-screen" class="screen">
+            <h2>Portfolio Review</h2>
+
+            <p class="page-intro">
+                Review your initial portfolio before starting the game.
+                This page shows your current holdings, stock value, remaining cash,
+                and sector allocation.
+            </p>
+
+            <div class="review-top-panel">
+                <div class="review-info-card">
+                    <h3>Investor</h3>
+                    <p id="review-investor-name">Investor Name</p>
+                </div>
+
+                <div class="review-info-card">
+                    <h3>Stock Value</h3>
+                    <p id="review-stock-value">$0</p>
+                </div>
+
+                <div class="review-info-card">
+                    <h3>Remaining Cash</h3>
+                    <p id="review-remaining-cash">$0</p>
+                </div>
+
+                <div class="review-info-card highlight-card">
+                    <h3>Total Portfolio Value</h3>
+                    <p id="review-total-value">$0</p>
+                </div>
+            </div>
+
+            <div class="review-main-layout">
+                <div class="review-holdings-panel">
+                    <h3 class="section-title">Current Holdings</h3>
+                    <div id="review-holdings-list" class="review-holdings-list">
+                        <!-- Holdings will be generated by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="review-summary-panel">
+                    <h3 class="section-title">Sector Allocation</h3>
+
+                    <div class="pie-chart-wrapper">
+                        <div id="sector-pie-chart" class="sector-pie-chart"></div>
+
+                        <div id="sector-legend" class="sector-legend">
+                            <!-- Legend will be generated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <div class="review-summary-box">
+                        <h3>Portfolio Summary</h3>
+                        <p><strong>Number of Stocks Held:</strong> <span id="review-stock-count">0</span></p>
+                        <p><strong>Total Shares Held:</strong> <span id="review-total-shares">0</span></p>
+                        <p><strong>Largest Sector:</strong> <span id="review-largest-sector">None</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-row">
+                <button onclick="goBackToInitialPurchase()">BACK TO EDIT</button>
+                <button onclick="confirmInitialPortfolio()">CONFIRM AND START GAME</button>
+            </div>
+        </div>
+        <!-- Monthly Stock Simulation Screen -->
+        <div id="monthly-simulation-screen" class="screen">
+            <h2 id="simulation-title">Month 1 Stock Simulation</h2>
+
+            <p class="page-intro">
+                The model is simulating 22 trading days of stock price movement.
+                The hidden market regime and selected major event change model parameters before the simulation starts.
+            </p>
+
+            <div class="simulation-top-panel">
+                <div class="simulation-info-card">
+                    <h3>Current Event</h3>
+                    <p id="simulation-event-name">Event Name</p>
+                </div>
+
+                <div class="simulation-info-card">
+                    <h3>Trading Day</h3>
+                    <p id="simulation-progress-day">0 / 22</p>
+                </div>
+
+                <div class="simulation-info-card">
+                    <h3>Start Value</h3>
+                    <p id="simulation-start-value">$0</p>
+                </div>
+
+                <div class="simulation-info-card highlight-card">
+                    <h3>Current Value</h3>
+                    <p id="simulation-current-value">$0</p>
+                </div>
+            </div>
+
+            <div class="simulation-main-layout">
+                <div class="simulation-chart-panel">
+                    <div class="chart-header">
+                        <div>
+                            <h3>Stock Price Paths</h3>
+                            <p id="simulation-status-text">Preparing simulation...</p>
+                        </div>
+                        <button id="start-simulation-button" onclick="playSimulationAnimation()">
+                            START SIMULATION
+                        </button>
+                    </div>
+
+                    <canvas id="simulation-chart-canvas" width="1000" height="520"></canvas>
+                </div>
+
+                <div class="simulation-result-panel">
+                    <h3>Portfolio Metrics</h3>
+
+                    <div class="metric-card">
+                        <span>Ending Value</span>
+                        <strong id="simulation-end-value">$0</strong>
+                    </div>
+
+                    <div class="metric-card">
+                        <span>Monthly Return</span>
+                        <strong id="simulation-return">0%</strong>
+                    </div>
+
+                    <div class="metric-card">
+                        <span>Max Drawdown</span>
+                        <strong id="simulation-mdd">0%</strong>
+                    </div>
+
+                    <div id="game-over-panel" class="game-over-panel">
+                        <div class="game-over-label">GAME OVER</div>
+                        <h3 id="game-over-title">Game Over</h3>
+                        <p id="game-over-message">Failure reason will appear here.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="section-title">Stock Performance</h3>
+
+            <div id="simulation-stock-performance-list" class="stock-performance-list">
+                <!-- Stock performance cards will be generated by JavaScript -->
+            </div>
+
+            <div class="button-row">
+                <button id="next-month-event-button" onclick="goToNextMonthEvent()" disabled>
+                    NEXT MONTH EVENT
+                </button>
+            </div>
+        </div>
+        <!-- Final Investment Summary Screen -->
+        <div id="final-summary-screen" class="screen">
+            <div id="final-result-banner" class="final-result-banner">
+                <div id="final-result-label" class="final-result-label">FINAL RESULT</div>
+                <h2 id="final-result-title">Final Investment Summary</h2>
+                <p id="final-result-message">Your final result will appear here.</p>
+            </div>
+
+            <div class="final-summary-grid">
+                <div class="final-summary-card">
+                    <h3>Investor</h3>
+                    <p id="final-investor-name">Investor</p>
+                </div>
+
+                <div class="final-summary-card">
+                    <h3>Months Played</h3>
+                    <p id="final-months-played">0 / 12</p>
+                </div>
+
+                <div class="final-summary-card">
+                    <h3>Initial Capital</h3>
+                    <p id="final-initial-capital">$0</p>
+                </div>
+
+                <div class="final-summary-card highlight-card">
+                    <h3>Final Wealth</h3>
+                    <p id="final-wealth">$0</p>
+                </div>
+
+                <div class="final-summary-card">
+                    <h3>Total Return</h3>
+                    <p id="final-total-return">0%</p>
+                </div>
+
+                <div class="final-summary-card">
+                    <h3>Maximum Drawdown</h3>
+                    <p id="final-max-drawdown">0%</p>
+                </div>
+            </div>
+
+            <div class="final-main-layout">
+                <div class="final-chart-panel">
+                    <h3>Portfolio Wealth Curve</h3>
+                    <p>Portfolio value from Month 0 to the end of the game.</p>
+                    <canvas id="final-wealth-chart-canvas" width="1000" height="420"></canvas>
+                </div>
+
+                <div class="final-role-panel">
+                    <h3>Role Target Check</h3>
+                    <div id="final-role-check-box" class="final-role-check-box">
+                        Role target result will appear here.
+                    </div>
+
+                    <h3 class="section-title">Final Allocation</h3>
+                    <div class="final-pie-wrapper">
+                        <div id="final-sector-pie-chart" class="final-sector-pie-chart"></div>
+                        <div id="final-sector-legend" class="sector-legend"></div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="section-title">Monthly History</h3>
+
+            <div class="final-table-wrapper">
+                <table class="final-history-table">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Event</th>
+                            <th>Start Value</th>
+                            <th>End Value</th>
+                            <th>Return</th>
+                            <th>Max Drawdown</th>
+                        </tr>
+                    </thead>
+                    <tbody id="final-monthly-history-body">
+                        <!-- Monthly history will be generated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="section-title">Final Stock Performance</h3>
+
+            <div id="final-stock-performance-list" class="final-stock-performance-list">
+                <!-- Final stock performance will be generated by JavaScript -->
+            </div>
+
+            <div class="button-row">
+                <button onclick="restartGame()">PLAY AGAIN</button>
+                <button onclick="restartGame()">BACK TO START</button>
+            </div>
+        </div>
+
+        <!-- Library Screen -->
+        <div id="library-screen" class="screen">
+            <h2>Model Library</h2>
+
+            <p class="page-intro">
+                This library explains the mathematical model, stock parameter settings,
+                and how monthly events affect model parameters.
+            </p>
+
+            <div class="library-nav">
+                <button onclick="scrollLibrarySection('library-model-section')">MODEL FORMULA</button>
+                <button onclick="scrollLibrarySection('library-stock-section')">STOCK PARAMETERS</button>
+                <button onclick="scrollLibrarySection('library-event-section')">EVENT EFFECTS</button>
+                <button onclick="scrollLibrarySection('library-manager-section')">WEALTH MANAGER</button>
+            </div>
+
+            <div class="library-section regime-library">
+                <h3>Hidden Market Model &amp; Public Information</h3>
+                <p>The market has four hidden regimes: Bull, Bear, Calm and Volatile. A 4 × 4 Markov transition matrix determines the next month’s regime. The regime is not disclosed during play.</p>
+                <p>Each month, two non-identical public announcements are sampled from 16 possible reports. Their category probabilities depend on the hidden regime. They are imperfect clues, not guaranteed answers, and do not directly change stock prices.</p>
+                <p>Four mystery major-event cards are independently sampled using regime-dependent event-type probabilities. The selected event changes stock parameters for the current month only. Unlike announcements, major events have direct parameter effects.</p>
+                <div class="library-table-wrapper"><table class="library-table"><thead><tr><th>Hidden regime</th><th>Positive</th><th>Negative</th><th>Mixed</th><th>No major event</th></tr></thead><tbody>
+                <tr><td>Bull</td><td>55%</td><td>15%</td><td>10%</td><td>20%</td></tr>
+                <tr><td>Bear</td><td>15%</td><td>55%</td><td>10%</td><td>20%</td></tr>
+                <tr><td>Calm</td><td>25%</td><td>20%</td><td>10%</td><td>45%</td></tr>
+                <tr><td>Volatile</td><td>30%</td><td>40%</td><td>20%</td><td>10%</td></tr>
+                </tbody></table></div>
+                <p>Regime effects are applied to expected return, volatility and the monthly market factor before the selected event effects. The existing 22-day sector jump-factor price simulation remains in use. These settings are illustrative game assumptions, not historical estimates.</p>
+                <p><strong>Regime adjustments:</strong> Bull: μ +0.004, σ ×0.95, market factor +0.012; Bear: μ −0.004, σ ×1.12, market factor −0.012; Calm: σ ×0.82; Volatile: μ −0.001, σ ×1.38.</p>
+            </div>
+            <div id="library-model-section" class="library-section">
+                <h3>1. Event-driven Sector Jump-Factor-GRW Model</h3>
+
+                <p>
+                    The game uses one main stock price model. Monthly events do not directly change stock prices.
+                    Instead, events change model parameters, and the model then simulates stock price movements.
+                    Player decisions and the wealth manager only change portfolio allocation, not the price model
+                    itself.
+                </p>
+
+                <div class="formula">
+                    S<sub>i,t+1</sub> = S<sub>i,t</sub>
+                    (1 + &mu;<sub>i</sub> + &beta;<sub>i</sub>F<sub>t</sub>
+                    + &gamma;<sub>i</sub>G<sub>s,t</sub>
+                    + &sigma;<sub>i</sub>&epsilon;<sub>i,t</sub>
+                    + J<sub>i,t</sub>)
+                </div>
+
+                <div class="library-table-wrapper">
+                    <table class="library-table">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Meaning</th>
+                                <th>Game Interpretation</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr>
+                                <td>S<sub>i,t</sub></td>
+                                <td>Price of stock i at time t</td>
+                                <td>The current simulated game price of a stock.</td>
+                            </tr>
+
+                            <tr>
+                                <td>&mu;<sub>i</sub></td>
+                                <td>Base expected return</td>
+                                <td>Higher value means the stock has stronger normal growth potential.</td>
+                            </tr>
+
+                            <tr>
+                                <td>&beta;<sub>i</sub></td>
+                                <td>Market sensitivity</td>
+                                <td>Higher value means the stock reacts more strongly to market-wide events.</td>
+                            </tr>
+
+                            <tr>
+                                <td>F<sub>t</sub></td>
+                                <td>Market factor</td>
+                                <td>Represents overall market sentiment in a month.</td>
+                            </tr>
+
+                            <tr>
+                                <td>&gamma;<sub>i</sub></td>
+                                <td>Sector sensitivity</td>
+                                <td>Higher value means the stock reacts more strongly to its sector movement.</td>
+                            </tr>
+
+                            <tr>
+                                <td>G<sub>s,t</sub></td>
+                                <td>Sector factor</td>
+                                <td>Represents sector-specific events, such as Technology or Energy shocks.</td>
+                            </tr>
+
+                            <tr>
+                                <td>&sigma;<sub>i</sub></td>
+                                <td>Volatility</td>
+                                <td>Higher value means the stock is more random and has larger price swings.</td>
+                            </tr>
+
+                            <tr>
+                                <td>&epsilon;<sub>i,t</sub></td>
+                                <td>Random noise</td>
+                                <td>Represents unpredictable daily market movement.</td>
+                            </tr>
+
+                            <tr>
+                                <td>J<sub>i,t</sub></td>
+                                <td>Jump shock</td>
+                                <td>Represents sudden jumps caused by unexpected news or shocks.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="library-stock-section" class="library-section">
+                <h3>2. Stock Parameter Settings</h3>
+
+                <p>
+                    Each stock has different parameter settings. High-growth stocks usually have higher expected return
+                    and higher volatility, while defensive stocks usually have lower expected return and lower
+                    volatility.
+                </p>
+
+                <div class="library-table-wrapper">
+                    <table class="library-table">
+                        <thead>
+                            <tr>
+                                <th>Stock</th>
+                                <th>Sector</th>
+                                <th>&mu;</th>
+                                <th>&beta;</th>
+                                <th>&gamma;</th>
+                                <th>&sigma;</th>
+                                <th>Jump Probability</th>
+                                <th>Jump Mean</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="library-stock-parameter-body">
+                            <!-- Generated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="library-event-section" class="library-section">
+                <h3>3. Event Effects on Parameters</h3>
+
+                <p>
+                    Monthly events affect the model by changing parameters such as expected return,
+                    market factor, sector factor, volatility, jump probability, and jump mean.
+                    In the gameplay screen, players only see an industry-level hint. In the library,
+                    the detailed parameter effects are shown for explanation and analysis.
+                </p>
+
+                <div id="library-event-effect-list" class="library-event-effect-list">
+                    <!-- Generated by JavaScript -->
+                </div>
+            </div>
+
+            <div id="library-manager-section" class="library-section">
+                <h3>4. Portfolio Decision and Wealth Manager</h3>
+
+                <p>
+                    The wealth manager does not change the stock price model. It only changes the player's
+                    portfolio allocation before the monthly simulation starts. Therefore, the mathematical
+                    model remains unchanged, while the investment decision becomes automated.
+                </p>
+
+                <div class="library-table-wrapper">
+                    <table class="library-table">
+                        <thead>
+                            <tr>
+                                <th>Decision Mode</th>
+                                <th>How It Works</th>
+                                <th>Cost</th>
+                                <th>Game Meaning</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr>
+                                <td>Manual Investing</td>
+                                <td>The player directly chooses how many shares to buy or sell.</td>
+                                <td>No commission</td>
+                                <td>Represents self-directed portfolio management.</td>
+                            </tr>
+
+                            <tr>
+                                <td>Wealth Manager</td>
+                                <td>The system automatically builds an event-based portfolio according to the current
+                                    event and investor role.</td>
+                                <td>0.5% of current wealth per use</td>
+                                <td>Represents delegated professional investment management.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="library-subtitle">Manager Style by Investor Role</h3>
+
+                <div class="library-table-wrapper">
+                    <table class="library-table">
+                        <thead>
+                            <tr>
+                                <th>Investor Role</th>
+                                <th>Manager Style</th>
+                                <th>Allocation Behaviour</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr>
+                                <td>College Student</td>
+                                <td>Growth Manager</td>
+                                <td>Focuses on growth opportunities while still keeping some cash buffer.</td>
+                            </tr>
+
+                            <tr>
+                                <td>Entrepreneur</td>
+                                <td>Aggressive Manager</td>
+                                <td>Uses more concentrated positions and takes higher risk when events create
+                                    opportunities.</td>
+                            </tr>
+
+                            <tr>
+                                <td>Banker</td>
+                                <td>Stability Manager</td>
+                                <td>Balances event opportunities with stable stocks and cash to reduce losing months.
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td>Retiree</td>
+                                <td>Protection Manager</td>
+                                <td>Prioritises defensive stocks and cash. The manager also respects the retiree rules:
+                                    no single stock above 30% of total wealth and at least 50% of initial capital kept
+                                    as cash.</td>
+                            </tr>
+                            <tr>
+                                <td>Sector Specialist</td>
+                                <td>Specialist Manager</td>
+                                <td>
+                                    Builds around the chosen specialist sector. If the sector is risky,
+                                    the manager may hold more cash, but non-specialist sector investment
+                                    remains below 30% of total wealth.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="library-subtitle">Event Card Rule</h3>
+
+                <div class="event-rule-library-card">
+                    <div class="event-rule-number">4</div>
+
+                    <div>
+                        <h4>Four Event Cards Each Month</h4>
+                        <p>
+                            Each month has two public announcements and four mystery event cards. Both are sampled probabilistically based on the hidden market state. No Major Event is possible in every state; its probability is not fixed at 1/4.
+                            The other events are not forced to be positive or negative; they are randomly selected from
+                            the event pool.
+                        </p>
+                    </div>
+                </div>
+                <h3 class="library-subtitle">Retiree Portfolio Restrictions</h3>
+
+                <div class="library-table-wrapper">
+                    <table class="library-table">
+                        <thead>
+                            <tr>
+                                <th>Rule</th>
+                                <th>Meaning</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr>
+                                <td>Single-stock limit</td>
+                                <td>No single stock can exceed 30% of total wealth.</td>
+                                <td>Retirees avoid placing too much retirement capital into one company.</td>
+                            </tr>
+
+                            <tr>
+                                <td>Protected cash reserve</td>
+                                <td>At least 50% of initial capital must be kept as cash.</td>
+                                <td>Retirees need a large safe reserve and can only invest part of their principal.</td>
+                            </tr>
+
+                            <tr>
+                                <td>No early drawdown failure</td>
+                                <td>Retirees no longer fail immediately because of monthly maximum drawdown.</td>
+                                <td>The role focuses on suitable portfolio construction rather than punishing random
+                                    short-term price movement.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="library-subtitle">Sector Specialist Portfolio Restrictions</h3>
+
+                <div class="library-table-wrapper">
+                    <table class="library-table">
+                        <thead>
+                            <tr>
+                                <th>Rule</th>
+                                <th>Meaning</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr>
+                                <td>Choose one specialist sector</td>
+                                <td>The player chooses Technology, Finance, Energy, or Consumer after selecting the
+                                    role.</td>
+                                <td>The role represents an investor with deep knowledge in one specific industry.</td>
+                            </tr>
+
+                            <tr>
+                                <td>Non-specialist exposure limit</td>
+                                <td>Total stock value invested in other sectors cannot exceed 30% of current total
+                                    wealth.</td>
+                                <td>The specialist may hold cash during bad events, but should not move too much capital
+                                    into unfamiliar industries.</td>
+                            </tr>
+
+                            <tr>
+                                <td>Cash is allowed</td>
+                                <td>Cash does not count as non-specialist sector exposure.</td>
+                                <td>This allows the specialist to defend the portfolio when the chosen industry faces
+                                    negative events.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="library-subtitle">Why Commission Is Included</h3>
+
+                <p>
+                    The manager can make strong event-based decisions, so a commission is added to balance the game.
+                    Each use reduces current wealth by 0.5%. This creates a trade-off:
+                    the manager provides professional allocation, but frequent use reduces final return.
+                </p>
+            </div>
+
+            <div class="button-row">
+                <button onclick="returnFromHelp()">RETURN TO GAME</button>
+                <button onclick="openHowToPlayFromGame()">HOW TO PLAY</button>
+            </div>
+        </div>
+
+        <!-- How to Play Screen -->
+        <div id="how-to-play-screen" class="screen">
+            <div class="how-hero">
+                <div class="how-hero-icon">🎮</div>
+                <div>
+                    <h2>How to Play</h2>
+                    <p>
+                        Choose an investor role, read market events, build or delegate your portfolio,
+                        and try to reach your one-year investment target.
+                    </p>
+                </div>
+            </div>
+
+            <div class="how-panel"><h3>Read the Signals, Not the Answer</h3><p>Every month begins with two public market announcements. They are probabilistic hints about a hidden Bull, Bear, Calm or Volatile regime. Use them to judge risk, then choose one of four mystery major-event cards. The revealed event influences this month’s stock parameters; the announcements themselves do not. Market regimes change between months according to a Markov chain.</p><p>The four cards may contain repeated events. Returning to the event screen does not generate a new draw. Continue through portfolio allocation, 22 trading days and the next month until 12 months or an early failure.</p></div>
+            <div class="how-flow-grid">
+                <div class="how-flow-card">
+                    <div class="how-step-number">1</div>
+                    <div class="how-step-icon">👤</div>
+                    <h3>Choose Your Investor</h3>
+                    <p>
+                        Each role has different capital, return target, and risk rule.
+                        Student and Entrepreneur focus on growth, Banker and Retiree care more about stability,
+                        and Sector Specialist focuses on one chosen industry.
+                    </p>
+                </div>
+
+                <div class="how-flow-card">
+                    <div class="how-step-number">2</div>
+                    <div class="how-step-icon">🏢</div>
+                    <h3>Study the Market</h3>
+                    <p>
+                        The game contains 10 stocks from Technology, Finance, Energy, and Consumer sectors.
+                        Each stock has different risk, volatility, and event sensitivity.
+                    </p>
+                </div>
+
+                <div class="how-flow-card">
+                    <div class="how-step-number">3</div>
+                    <div class="how-step-icon">🎴</div>
+                    <h3>Draw an Event</h3>
+                    <p>
+                        Every month, four event cards appear. Four mystery cards are generated from probabilities that depend on a hidden market state. Read two public announcements, then pick one card. A revealed event cannot be changed.
+                    </p>
+                </div>
+
+                <div class="how-flow-card">
+                    <div class="how-step-number">4</div>
+                    <div class="how-step-icon">💼</div>
+                    <h3>Build Your Portfolio</h3>
+                    <p>
+                        After the event is revealed, adjust your portfolio manually.
+                        You can buy stocks, sell stocks, or keep part of your wealth as cash.
+                    </p>
+                </div>
+
+                <div class="how-flow-card">
+                    <div class="how-step-number">5</div>
+                    <div class="how-step-icon">🧑‍💼</div>
+                    <h3>Use Wealth Manager</h3>
+                    <p>
+                        You may entrust the portfolio to a professional wealth manager.
+                        The manager creates an event-based allocation, but charges a 0.5% commission each time.
+                    </p>
+                </div>
+
+                <div class="how-flow-card">
+                    <div class="how-step-number">6</div>
+                    <div class="how-step-icon">📈</div>
+                    <h3>Run Simulation</h3>
+                    <p>
+                        The model simulates 22 trading days for the current month.
+                        Your stock prices, portfolio value, return, and drawdown are updated.
+                    </p>
+                </div>
+            </div>
+
+            <div class="how-two-column">
+                <div class="how-panel">
+                    <h3>Monthly Game Cycle</h3>
+
+                    <div class="cycle-line">
+                        <span>4 Event Cards</span>
+                        <span>→</span>
+                        <span>Reveal Event</span>
+                        <span>→</span>
+                        <span>Invest</span>
+                        <span>→</span>
+                        <span>Simulate</span>
+                    </div>
+
+                    <p>
+                        The event gives an industry-level hint. It may say that technology, finance,
+                        energy, or consumer industries could benefit or suffer, but it does not directly
+                        tell you the perfect stock choice.
+                    </p>
+
+                    <div class="example-box">
+                        <strong>Example:</strong>
+                        If oil prices rise, energy companies may benefit, while consumer companies may face higher
+                        costs.
+                        If a banking scandal occurs, financial stocks may face stronger pressure.
+                    </div>
+                </div>
+
+                <div class="how-panel">
+                    <h3>Investor Role Rules</h3>
+
+                    <div class="role-mini-list">
+                        <div>
+                            <strong>🎓 College Student</strong>
+                            <span>Initial capital: $5,000. Target return: 20%. No early failure rule.</span>
+                        </div>
+
+                        <div>
+                            <strong>💼 Entrepreneur</strong>
+                            <span>Initial capital: $40,000. Target return: 40%. Aggressive growth is needed.</span>
+                        </div>
+
+                        <div>
+                            <strong>🏦 Banker</strong>
+                            <span>Initial capital: $50,000. Target return: 25%. More than 3 losing months causes early
+                                Game Over.</span>
+                        </div>
+
+                        <div>
+                            <strong>👴 Retiree</strong>
+                            <span>Initial capital: $30,000. Target return: 5%. No early Game Over, but no single stock
+                                can exceed 30% of total wealth and at least 50% of initial capital must be kept as
+                                cash.</span>
+                        </div>
+
+                        <div>
+                            <strong>🧭 Sector Specialist</strong>
+                            <span>
+                                Initial capital: $30,000. Target return: 30%.
+                                Choose one specialist sector. Total investment in other sectors cannot exceed 30% of
+                                current total wealth.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="how-two-column">
+                <div class="how-panel">
+                    <h3>Manual Investing</h3>
+
+                    <p>
+                        Manual investing gives you full control. You can react to the revealed event,
+                        choose stocks by sector, and decide how much cash to keep.
+                    </p>
+
+                    <div class="example-box">
+                        Manual mode has no commission. However, you must make the allocation decision yourself.
+                        This mode is suitable if you want to test your own event-reading strategy.
+                    </div>
+                </div>
+
+                <div class="how-panel manager-help-panel">
+                    <h3>Wealth Manager Service</h3>
+
+                    <p>
+                        The wealth manager automatically builds a portfolio according to your role and the current
+                        event.
+                        It can be strong because it uses event-specific allocation plans.
+                    </p>
+
+                    <div class="manager-fee-box">
+                        Commission: 0.5% of current wealth per use
+                    </div>
+
+                    <p>
+                        You can use the manager once per month. After the manager adjusts the portfolio,
+                        you can still manually fine-tune the sliders before continuing.
+                    </p>
+                </div>
+            </div>
+
+            <div class="how-strategy-panel">
+                <h3>Winning Tips</h3>
+
+                <div class="strategy-chip-row">
+                    <div class="strategy-chip">Read the industry hint</div>
+                    <div class="strategy-chip">Match events with sectors</div>
+                    <div class="strategy-chip">Keep cash in risky months</div>
+                    <div class="strategy-chip">Use manager when unsure</div>
+                    <div class="strategy-chip">Watch role failure rules</div>
+                </div>
+
+                <p>
+                    The game is not pure luck. Events change model parameters, and your portfolio decision
+                    determines how strongly those changes affect your final wealth.
+                </p>
+            </div>
+
+            <div class="button-row">
+                <button onclick="returnFromHelp()">RETURN TO GAME</button>
+                <button onclick="openLibraryFromGame()">OPEN LIBRARY</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

@@ -2578,3 +2578,37 @@ ol {
         padding: 16px;
     }
 }
+
+/* v2: pre-investment public news and post-investment blind event reveal */
+.intelligence-notice, .locked-portfolio-message {
+    display: block;
+    max-width: 820px;
+    margin: 20px auto;
+    padding: 14px 18px;
+    background: #eff6ff;
+    border: 1px solid #93c5fd;
+    border-radius: 12px;
+    color: #1e40af;
+    font-size: 15px;
+    line-height: 1.55;
+    text-align: center;
+}
+#market-intelligence-screen .market-announcement-list { margin: 16px auto; }
+#event-selection-screen .market-announcement-section { opacity: 0.87; }
+#event-selection-screen .mystery-event-card { cursor: pointer; }
+#event-selection-screen .mystery-event-card.locked,
+#event-selection-screen .mystery-event-card.revealed { cursor: default; }
+@media (max-width: 600px) {
+    .event-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .mystery-event-card { min-width: 0; }
+    .intelligence-notice, .locked-portfolio-message { font-size: 13px; }
+    .library-table-wrapper { overflow-x: auto; }
+}
+
+/* Balanced V3: clearly indicate when the blind-draw controls are unavailable. */
+#event-reset-button:disabled,
+#event-continue-button:disabled {
+    opacity: 0.52;
+    cursor: not-allowed;
+    transform: none;
+}

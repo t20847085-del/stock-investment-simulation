@@ -216,11 +216,11 @@ function ensureMonthlyAnnouncements() {
     if (!Array.isArray(gameState.currentAnnouncements)) {
         gameState.currentAnnouncements = [];
     }
-
     if (gameState.currentAnnouncements.length === 0) {
-        gameState.currentAnnouncements =
-            generateMarketAnnouncements();
+        gameState.currentAnnouncements = generateMarketAnnouncements();
     }
+    // The manager sees the same public reports as the player; never the true regime.
+    updatePublicMarketBeliefs();
 }
 
 function sampleMarketState(probabilities) {
@@ -261,6 +261,54 @@ function advanceMarketState() {
     gameState.marketStateHistory.push(nextState);
 }
 
+// -----------------------------
+// Public-information Hidden Markov Model (forward filtering)
+// -----------------------------
+function calculateAnnouncementLikelihood(state, first, second) {
+    const probabilities = ANNOUNCEMENT_CATEGORY_PROBABILITIES[state];
+    if (!probabilities || !first || !second || first.id === second.id) return 0;
+    const countFirst = MARKET_ANNOUNCEMENTS.filter(a => a.category === first.category).length;
+    const countSecond = MARKET_ANNOUNCEMENTS.filter(a => a.category === second.category).length;
+    const wFirst = probabilities[first.category] / countFirst;
+    const wSecond = probabilities[second.category] / countSecond;
+    // Exact ordered likelihood matching the game's weighted, no-replacement draw.
+    return wFirst * wSecond / (1 - wFirst);
+}
+
+function updatePublicMarketBeliefs() {
+    if (gameState.marketBeliefMonth === gameState.month) return;
+    if (!Array.isArray(gameState.currentAnnouncements) || gameState.currentAnnouncements.length !== 2) return;
+    const previous = Array.isArray(gameState.marketBeliefs)
+        ? gameState.marketBeliefs : INITIAL_MARKET_PROBABILITIES;
+    const prior = gameState.month === 1
+        ? INITIAL_MARKET_PROBABILITIES.slice()
+        : MARKET_STATES.map((_, target) =>
+            MARKET_STATES.reduce((sum, source, i) =>
+                sum + previous[i] * MARKET_TRANSITION_MATRIX[source][target], 0));
+    const [first, second] = gameState.currentAnnouncements;
+    const unnormalised = MARKET_STATES.map((state, i) =>
+        prior[i] * calculateAnnouncementLikelihood(state, first, second));
+    const total = unnormalised.reduce((sum, value) => sum + value, 0);
+    const posterior = total > 0
+        ? unnormalised.map(value => value / total)
+        : prior.slice();
+    gameState.marketBeliefs = posterior;
+    gameState.marketBeliefMonth = gameState.month;
+    gameState.marketBeliefHistory.push({
+        month: gameState.month,
+        announcementIds: [first.id, second.id],
+        prior: prior.slice(),
+        posterior: posterior.slice()
+    });
+}
+
+function getPublicMarketAssessment() {
+    ensureMonthlyAnnouncements();
+    return MARKET_STATES.map((state, i) => ({
+        state: state, probability: gameState.marketBeliefs[i]
+    }));
+}
+
 let gameState = {
     selectedCharacter: null,
     selectedSpecialistSector: null,
@@ -270,6 +318,12 @@ let gameState = {
     currentMarketState: null,
     marketStateHistory: [],
     currentAnnouncements: [],
+    marketBeliefs: INITIAL_MARKET_PROBABILITIES.slice(),
+    marketBeliefMonth: null,
+    marketBeliefHistory: [],
+    portfolioLocked: false,
+    lockedPortfolioMonth: null,
+    simulationStarted: false,
     targetReturn: 0,
     mustProfitEveryMonth: false,
     maxDrawdownLimit: null,
@@ -313,7 +367,7 @@ const characters = {
         avatar: "🎓",
         capital: 5000,
         riskStyle: "High risk tolerance",
-        targetReturn: 0.20,
+        targetReturn: 0.15,
         mustProfitEveryMonth: false,
         maxDrawdownLimit: null,
 
@@ -324,7 +378,7 @@ const characters = {
             "You have strong ambition and want to turn a small amount of money into meaningful profit within one year.",
 
         victoryCondition:
-            "Final return must be at least 20% after one year.",
+            "Final return must be at least 15% after one year.",
 
         failureCondition:
             "No early failure. Only the final result matters.",
@@ -338,7 +392,7 @@ const characters = {
         avatar: "💼",
         capital: 40000,
         riskStyle: "Very high risk appetite",
-        targetReturn: 0.40,
+        targetReturn: 0.25,
         mustProfitEveryMonth: false,
         maxDrawdownLimit: null,
 
@@ -349,7 +403,7 @@ const characters = {
             "outperform a normal investor.",
 
         victoryCondition:
-            "Final return must be at least 40% after one year.",
+            "Final return must be at least 25% after one year.",
 
         failureCondition:
             "No early failure, but the final target is difficult.",
@@ -363,7 +417,7 @@ const characters = {
         avatar: "🏦",
         capital: 50000,
         riskStyle: "Stability focused",
-        targetReturn: 0.25,
+        targetReturn: 0.15,
         mustProfitEveryMonth: true,
         maxDrawdownLimit: null,
 
@@ -373,10 +427,10 @@ const characters = {
             "For you, too many losing months mean your risk management has failed.",
 
         victoryCondition:
-            "Final return must be at least 25% after one year.",
+            "Final return must be at least 15% after one year.",
 
         failureCondition:
-            "If you have more than 3 losing months, the game ends early.",
+            "If you have more than 4 losing months, the game ends early.",
 
         gameMeaning:
             "This role forces stable investment decisions. You can survive small setbacks, but repeated losing months will end the game."
@@ -387,7 +441,7 @@ const characters = {
         avatar: "👴",
         capital: 30000,
         riskStyle: "Capital protection and diversification",
-        targetReturn: 0.05,
+        targetReturn: 0.03,
         mustProfitEveryMonth: false,
         maxDrawdownLimit: null,
         maxSingleStockWeight: 0.30,
@@ -399,7 +453,7 @@ const characters = {
             "You may invest, but you must keep the portfolio diversified and preserve a large cash reserve.",
 
         victoryCondition:
-            "Final return must be at least 5% after one year.",
+            "Final return must be at least 3% after one year.",
 
         failureCondition:
             "No early failure. However, no single stock can exceed 30% of total wealth, and at least 50% of initial capital must be kept as cash.",
@@ -413,7 +467,7 @@ const characters = {
         avatar: "🧭",
         capital: 30000,
         riskStyle: "Focused industry expertise",
-        targetReturn: 0.30,
+        targetReturn: 0.15,
         mustProfitEveryMonth: false,
         maxDrawdownLimit: null,
         needsSectorChoice: true,
@@ -424,7 +478,7 @@ const characters = {
             "When your sector faces negative events, you may hold more cash, but you should not move too much capital into unfamiliar sectors.",
 
         victoryCondition:
-            "Final return must be at least 30% after one year.",
+            "Final return must be at least 15% after one year.",
 
         failureCondition:
             "No early failure. However, the total value invested in non-specialist sectors cannot exceed 30% of current total wealth.",
@@ -1541,9 +1595,38 @@ function goBackToCharacterDetail() {
 // Initial Purchase Page
 // -----------------------------
 function enterDashboard() {
-    startEventSelection();
+    if (gameState.portfolioLocked) {
+        alert("Your portfolio is locked for this month.");
+        return;
+    }
+    showMonthlyMarketIntelligence();
 }
 
+
+function showMonthlyMarketIntelligence() {
+    if (gameState.portfolioLocked) {
+        alert("The current month's portfolio is already locked.");
+        return;
+    }
+    ensureMonthlyAnnouncements();
+    const heading = document.getElementById("intelligence-title");
+    if (heading) heading.textContent = "Month " + gameState.month + " Market Intelligence";
+    const list = document.getElementById("intelligence-announcement-list");
+    if (list) renderMarketAnnouncementsInto(list);
+    const back = document.getElementById("intelligence-back-button");
+    if (back) back.style.display = gameState.month === 1 ? "" : "none";
+    showScreen("market-intelligence-screen");
+}
+
+function proceedFromIntelligence() {
+    if (gameState.portfolioLocked) return;
+    startInitialPurchase();
+}
+
+function returnToMarketIntelligence() {
+    if (gameState.portfolioLocked) return;
+    showMonthlyMarketIntelligence();
+}
 
 function formatMoney(value) {
     return "$" + Number(value).toLocaleString("en-US", {
@@ -1698,6 +1781,11 @@ function getMaxSharesForStock(stockKey) {
 
 
 function startInitialPurchase() {
+    if (gameState.portfolioLocked) {
+        alert("This month's portfolio is locked. Continue to the event draw.");
+        return;
+    }
+    ensureMonthlyAnnouncements();
     if (gameState.selectedCharacter === null) {
         alert("Please choose a character first.");
         showScreen("character-screen");
@@ -1815,6 +1903,7 @@ function renderInitialPurchasePage() {
 
 
 function updatePurchaseShares(stockKey, newValue) {
+    if (gameState.portfolioLocked) return;
     const stock = stocks[stockKey];
 
     let newShares = parseInt(newValue);
@@ -1951,6 +2040,7 @@ function updateRoleRuleWarning() {
 }
 
 function resetInitialPurchase() {
+    if (gameState.portfolioLocked) return;
     Object.keys(stocks).forEach(function (stockKey) {
         gameState.purchaseShares[stockKey] = 0;
     });
@@ -1959,510 +2049,9 @@ function resetInitialPurchase() {
 }
 
 // -----------------------------
-// Wealth Manager Service
+// Wealth Manager Service (HMM replaces event-specific recommendations)
 // -----------------------------
-const WEALTH_MANAGER_COMMISSION_RATE = 0.005;
-
-const wealthManagerPlans = {
-    ai_breakthrough: {
-        growth: {
-            nvidia: 0.35,
-            microsoft: 0.25,
-            apple: 0.20,
-            visa: 0.05,
-            cash: 0.15
-        },
-        aggressive: {
-            nvidia: 0.45,
-            microsoft: 0.22,
-            apple: 0.18,
-            cash: 0.15
-        },
-        stable: {
-            microsoft: 0.25,
-            apple: 0.20,
-            nvidia: 0.15,
-            walmart: 0.10,
-            cocacola: 0.10,
-            cash: 0.20
-        },
-        protective: {
-            microsoft: 0.15,
-            apple: 0.12,
-            walmart: 0.20,
-            cocacola: 0.20,
-            mcdonalds: 0.13,
-            cash: 0.20
-        }
-    },
-
-    apple_product_launch: {
-        growth: {
-            apple: 0.40,
-            microsoft: 0.20,
-            nvidia: 0.10,
-            visa: 0.10,
-            cash: 0.20
-        },
-        aggressive: {
-            apple: 0.50,
-            nvidia: 0.15,
-            microsoft: 0.15,
-            visa: 0.05,
-            cash: 0.15
-        },
-        stable: {
-            apple: 0.30,
-            microsoft: 0.20,
-            visa: 0.10,
-            walmart: 0.15,
-            cocacola: 0.10,
-            cash: 0.15
-        },
-        protective: {
-            apple: 0.18,
-            microsoft: 0.15,
-            walmart: 0.22,
-            cocacola: 0.20,
-            mcdonalds: 0.10,
-            cash: 0.15
-        }
-    },
-
-    rare_earth_shortage: {
-        growth: {
-            exxon: 0.25,
-            chevron: 0.20,
-            walmart: 0.15,
-            cocacola: 0.15,
-            visa: 0.05,
-            cash: 0.20
-        },
-        aggressive: {
-            exxon: 0.30,
-            chevron: 0.25,
-            walmart: 0.12,
-            cocacola: 0.10,
-            microsoft: 0.08,
-            cash: 0.15
-        },
-        stable: {
-            walmart: 0.20,
-            cocacola: 0.20,
-            mcdonalds: 0.15,
-            chevron: 0.10,
-            exxon: 0.10,
-            cash: 0.25
-        },
-        protective: {
-            walmart: 0.25,
-            cocacola: 0.25,
-            mcdonalds: 0.15,
-            chevron: 0.08,
-            cash: 0.27
-        }
-    },
-
-    banking_scandal: {
-        growth: {
-            walmart: 0.25,
-            cocacola: 0.20,
-            mcdonalds: 0.20,
-            microsoft: 0.15,
-            apple: 0.10,
-            cash: 0.10
-        },
-        aggressive: {
-            microsoft: 0.25,
-            apple: 0.18,
-            walmart: 0.20,
-            cocacola: 0.15,
-            mcdonalds: 0.12,
-            cash: 0.10
-        },
-        stable: {
-            walmart: 0.25,
-            cocacola: 0.25,
-            mcdonalds: 0.15,
-            microsoft: 0.10,
-            cash: 0.25
-        },
-        protective: {
-            walmart: 0.25,
-            cocacola: 0.30,
-            mcdonalds: 0.15,
-            cash: 0.30
-        }
-    },
-
-    oil_price_surge: {
-        growth: {
-            exxon: 0.35,
-            chevron: 0.30,
-            microsoft: 0.10,
-            apple: 0.10,
-            cash: 0.15
-        },
-        aggressive: {
-            exxon: 0.42,
-            chevron: 0.33,
-            microsoft: 0.08,
-            cash: 0.17
-        },
-        stable: {
-            chevron: 0.25,
-            exxon: 0.20,
-            cocacola: 0.15,
-            walmart: 0.15,
-            cash: 0.25
-        },
-        protective: {
-            chevron: 0.18,
-            exxon: 0.15,
-            walmart: 0.20,
-            cocacola: 0.20,
-            cash: 0.27
-        }
-    },
-
-    clean_energy_breakthrough: {
-        growth: {
-            microsoft: 0.25,
-            apple: 0.20,
-            nvidia: 0.15,
-            walmart: 0.15,
-            mcdonalds: 0.10,
-            cash: 0.15
-        },
-        aggressive: {
-            nvidia: 0.25,
-            microsoft: 0.25,
-            apple: 0.20,
-            walmart: 0.10,
-            cash: 0.20
-        },
-        stable: {
-            microsoft: 0.20,
-            apple: 0.15,
-            walmart: 0.20,
-            cocacola: 0.20,
-            cash: 0.25
-        },
-        protective: {
-            walmart: 0.25,
-            cocacola: 0.25,
-            mcdonalds: 0.15,
-            microsoft: 0.10,
-            cash: 0.25
-        }
-    },
-
-    high_inflation: {
-        growth: {
-            exxon: 0.20,
-            chevron: 0.15,
-            walmart: 0.15,
-            cocacola: 0.15,
-            mcdonalds: 0.10,
-            cash: 0.25
-        },
-        aggressive: {
-            exxon: 0.25,
-            chevron: 0.20,
-            walmart: 0.12,
-            cocacola: 0.10,
-            microsoft: 0.08,
-            cash: 0.25
-        },
-        stable: {
-            walmart: 0.20,
-            cocacola: 0.20,
-            chevron: 0.10,
-            exxon: 0.10,
-            cash: 0.40
-        },
-        protective: {
-            walmart: 0.20,
-            cocacola: 0.25,
-            mcdonalds: 0.10,
-            chevron: 0.08,
-            cash: 0.37
-        }
-    },
-
-    global_trade_war: {
-        growth: {
-            microsoft: 0.15,
-            visa: 0.15,
-            cocacola: 0.20,
-            mcdonalds: 0.15,
-            chevron: 0.10,
-            cash: 0.25
-        },
-        aggressive: {
-            microsoft: 0.20,
-            visa: 0.15,
-            cocacola: 0.15,
-            mcdonalds: 0.15,
-            chevron: 0.10,
-            cash: 0.25
-        },
-        stable: {
-            cocacola: 0.25,
-            mcdonalds: 0.20,
-            walmart: 0.10,
-            visa: 0.10,
-            cash: 0.35
-        },
-        protective: {
-            cocacola: 0.30,
-            mcdonalds: 0.20,
-            walmart: 0.15,
-            cash: 0.35
-        }
-    },
-
-    economic_recovery: {
-        growth: {
-            visa: 0.20,
-            jpmorgan: 0.15,
-            walmart: 0.15,
-            mcdonalds: 0.15,
-            microsoft: 0.15,
-            apple: 0.10,
-            cash: 0.10
-        },
-        aggressive: {
-            visa: 0.20,
-            jpmorgan: 0.20,
-            nvidia: 0.15,
-            microsoft: 0.15,
-            walmart: 0.10,
-            mcdonalds: 0.10,
-            cash: 0.10
-        },
-        stable: {
-            visa: 0.18,
-            walmart: 0.18,
-            mcdonalds: 0.15,
-            microsoft: 0.12,
-            cocacola: 0.12,
-            cash: 0.25
-        },
-        protective: {
-            walmart: 0.22,
-            cocacola: 0.20,
-            mcdonalds: 0.18,
-            visa: 0.10,
-            microsoft: 0.08,
-            cash: 0.22
-        }
-    },
-
-    real_estate_crash: {
-        growth: {
-            walmart: 0.25,
-            cocacola: 0.25,
-            mcdonalds: 0.15,
-            microsoft: 0.10,
-            apple: 0.05,
-            cash: 0.20
-        },
-        aggressive: {
-            microsoft: 0.18,
-            apple: 0.10,
-            walmart: 0.25,
-            cocacola: 0.20,
-            mcdonalds: 0.12,
-            cash: 0.15
-        },
-        stable: {
-            walmart: 0.25,
-            cocacola: 0.25,
-            mcdonalds: 0.15,
-            cash: 0.35
-        },
-        protective: {
-            walmart: 0.25,
-            cocacola: 0.30,
-            mcdonalds: 0.15,
-            cash: 0.30
-        }
-    },
-
-    strong_consumer_spending: {
-        growth: {
-            walmart: 0.25,
-            mcdonalds: 0.25,
-            cocacola: 0.20,
-            visa: 0.15,
-            apple: 0.05,
-            cash: 0.10
-        },
-        aggressive: {
-            mcdonalds: 0.28,
-            walmart: 0.25,
-            cocacola: 0.18,
-            visa: 0.17,
-            nvidia: 0.05,
-            cash: 0.07
-        },
-        stable: {
-            walmart: 0.25,
-            cocacola: 0.25,
-            mcdonalds: 0.20,
-            visa: 0.10,
-            cash: 0.20
-        },
-        protective: {
-            walmart: 0.28,
-            cocacola: 0.28,
-            mcdonalds: 0.18,
-            cash: 0.26
-        }
-    },
-
-    technology_upgrade_cycle: {
-        growth: {
-            microsoft: 0.30,
-            nvidia: 0.25,
-            apple: 0.20,
-            visa: 0.10,
-            cash: 0.15
-        },
-        aggressive: {
-            nvidia: 0.35,
-            microsoft: 0.30,
-            apple: 0.20,
-            cash: 0.15
-        },
-        stable: {
-            microsoft: 0.30,
-            apple: 0.20,
-            nvidia: 0.10,
-            walmart: 0.10,
-            cocacola: 0.10,
-            cash: 0.20
-        },
-        protective: {
-            microsoft: 0.18,
-            apple: 0.15,
-            walmart: 0.22,
-            cocacola: 0.20,
-            cash: 0.25
-        }
-    },
-    large_scale_labor_strike: {
-        growth: {
-            walmart: 0.18,
-            cocacola: 0.18,
-            microsoft: 0.15,
-            visa: 0.10,
-            chevron: 0.10,
-            cash: 0.29
-        },
-        aggressive: {
-            microsoft: 0.22,
-            apple: 0.12,
-            visa: 0.12,
-            cocacola: 0.16,
-            walmart: 0.13,
-            cash: 0.25
-        },
-        stable: {
-            walmart: 0.18,
-            cocacola: 0.22,
-            mcdonalds: 0.12,
-            microsoft: 0.10,
-            visa: 0.08,
-            cash: 0.30
-        },
-        protective: {
-            walmart: 0.20,
-            cocacola: 0.18,
-            mcdonalds: 0.12,
-            cash: 0.50
-        }
-    },
-
-    major_cyberattack: {
-        growth: {
-            walmart: 0.20,
-            cocacola: 0.18,
-            mcdonalds: 0.15,
-            exxon: 0.10,
-            chevron: 0.10,
-            cash: 0.27
-        },
-        aggressive: {
-            walmart: 0.18,
-            cocacola: 0.17,
-            mcdonalds: 0.15,
-            exxon: 0.15,
-            chevron: 0.10,
-            cash: 0.25
-        },
-        stable: {
-            walmart: 0.22,
-            cocacola: 0.22,
-            mcdonalds: 0.14,
-            chevron: 0.08,
-            cash: 0.34
-        },
-        protective: {
-            walmart: 0.22,
-            cocacola: 0.18,
-            mcdonalds: 0.10,
-            cash: 0.50
-        }
-    },
-    calm_market: {
-        growth: {
-            apple: 0.12,
-            microsoft: 0.12,
-            nvidia: 0.12,
-            jpmorgan: 0.08,
-            visa: 0.10,
-            exxon: 0.08,
-            chevron: 0.08,
-            walmart: 0.10,
-            cocacola: 0.10,
-            mcdonalds: 0.10
-        },
-        aggressive: {
-            apple: 0.12,
-            microsoft: 0.15,
-            nvidia: 0.20,
-            jpmorgan: 0.10,
-            visa: 0.10,
-            exxon: 0.08,
-            chevron: 0.05,
-            walmart: 0.08,
-            cocacola: 0.05,
-            mcdonalds: 0.07
-        },
-        stable: {
-            apple: 0.08,
-            microsoft: 0.10,
-            visa: 0.10,
-            walmart: 0.18,
-            cocacola: 0.18,
-            mcdonalds: 0.14,
-            chevron: 0.07,
-            cash: 0.15
-        },
-        protective: {
-            walmart: 0.22,
-            cocacola: 0.22,
-            mcdonalds: 0.16,
-            microsoft: 0.10,
-            visa: 0.08,
-            chevron: 0.07,
-            cash: 0.15
-        }
-    }
-};
-
+const WEALTH_MANAGER_COMMISSION_RATE = 0.001;
 
 function getManagerStyleForCharacter() {
     if (gameState.selectedCharacter === "entrepreneur") {
@@ -2489,28 +2078,125 @@ function getManagerStyleForCharacter() {
 }
 
 
-function getCurrentEventIdForManager() {
-    if (gameState.currentEvent && gameState.currentEvent.id) {
-        return gameState.currentEvent.id;
-    }
+// -----------------------------
+// HMM-based, risk-adjusted public-information wealth manager
+// Parameters are game-design assumptions, not calibrated market estimates.
+// -----------------------------
+const MANAGER_RISK_PROFILES = {
+    growth:     {returnWeight:1.00,riskWeight:0.35,sectorBonus:0,    baseCash:0.15,minCash:0.10,maxCash:0.30,temperature:0.020,maxStock:0.28},
+    aggressive: {returnWeight:1.30,riskWeight:0.15,sectorBonus:0,    baseCash:0.10,minCash:0.05,maxCash:0.25,temperature:0.012,maxStock:0.40},
+    stable:     {returnWeight:0.80,riskWeight:0.85,sectorBonus:0,    baseCash:0.25,minCash:0.20,maxCash:0.45,temperature:0.035,maxStock:0.23},
+    protective: {returnWeight:0.60,riskWeight:1.20,sectorBonus:0,    baseCash:0.40,minCash:0.35,maxCash:0.65,temperature:0.050,maxStock:0.20},
+    specialist: {returnWeight:1.00,riskWeight:0.55,sectorBonus:0.015,baseCash:0.25,minCash:0.15,maxCash:0.45,temperature:0.025,maxStock:0.42}
+};
 
-    return "calm_market";
+function estimateStockReturnAndRisk(stockKey, beliefs) {
+    const stock = stocks[stockKey];
+    const scenarioReturns = MARKET_STATES.map(state => {
+        const regime = MARKET_REGIME_EFFECTS[state];
+        return stock.mu + regime.muChange + stock.beta * regime.marketFactorChange;
+    });
+    const expectedReturn = scenarioReturns.reduce((sum, value, i) =>
+        sum + beliefs[i] * value, 0);
+    // Total-variance decomposition; this is a simplified risk proxy and does
+    // not predict the exact price-model distribution or future event draws.
+    const variance = MARKET_STATES.reduce((sum, state, i) => {
+        const sigma = stock.sigma * MARKET_REGIME_EFFECTS[state].sigmaMultiplier;
+        return sum + beliefs[i] * (
+            sigma * sigma + Math.pow(scenarioReturns[i] - expectedReturn, 2));
+    }, 0);
+    return {expectedReturn: expectedReturn, risk: Math.sqrt(Math.max(variance, 0))};
 }
 
+function calculateTargetCashWeight(profile, beliefs) {
+    const raw = profile.baseCash + 0.20 * beliefs[1] +
+        0.12 * beliefs[3] - 0.08 * beliefs[0];
+    let cash = clamp(raw, profile.minCash, profile.maxCash);
+    if (gameState.selectedCharacter === "retiree" && gameState.currentWealth > 0) {
+        // Unlike a percentage-only rule, this protects 50% of INITIAL capital.
+        cash = Math.max(cash, clamp(
+            gameState.initialCapital * getSelectedCharacter().protectedCashRatio /
+                gameState.currentWealth, 0, 1));
+    }
+    return clamp(cash, 0, 1);
+}
+
+function cappedSoftmaxAllocation(stockKeys, scores, totalBudget, temperature, singleStockCap) {
+    const allocation = {};
+    stockKeys.forEach(key => allocation[key] = 0);
+    if (totalBudget <= 0 || stockKeys.length === 0) return allocation;
+    const peak = Math.max(...stockKeys.map(key => scores[key]));
+    const attractiveness = {};
+    stockKeys.forEach(key => {
+        attractiveness[key] = Math.exp((scores[key] - peak) / temperature);
+    });
+    let left = totalBudget;
+    let eligible = stockKeys.slice();
+    for (let round = 0; round < stockKeys.length + 1 && left > 1e-10 && eligible.length; round++) {
+        const denominator = eligible.reduce((sum, key) => sum + attractiveness[key], 0);
+        const capped = eligible.filter(key => {
+            const desired = left * attractiveness[key] / denominator;
+            return desired > singleStockCap - allocation[key] + 1e-10;
+        });
+        if (capped.length === 0) {
+            eligible.forEach(key => {
+                allocation[key] += left * attractiveness[key] / denominator;
+            });
+            left = 0;
+            break;
+        }
+        capped.forEach(key => {
+            const amount = Math.max(0, singleStockCap - allocation[key]);
+            allocation[key] += amount;
+            left -= amount;
+        });
+        eligible = eligible.filter(key => !capped.includes(key));
+    }
+    return allocation; // Leftover budget becomes cash, not forced leverage.
+}
+
+function generateRiskBasedPortfolio(beliefs, managerStyle, specialistSector) {
+    const profile = MANAGER_RISK_PROFILES[managerStyle] || MANAGER_RISK_PROFILES.growth;
+    const cashTarget = calculateTargetCashWeight(profile, beliefs);
+    const stockBudget = Math.max(0, 1 - cashTarget);
+    const scores = {};
+    Object.keys(stocks).forEach(key => {
+        const estimate = estimateStockReturnAndRisk(key, beliefs);
+        const preferred = managerStyle === "specialist" &&
+            stocks[key].sector === specialistSector;
+        scores[key] = profile.returnWeight * estimate.expectedReturn -
+            profile.riskWeight * estimate.risk + (preferred ? profile.sectorBonus : 0);
+    });
+    const keys = Object.keys(stocks);
+    let allocation;
+    if (managerStyle === "specialist" && specialistSector) {
+        const inside = keys.filter(key => stocks[key].sector === specialistSector);
+        const outside = keys.filter(key => stocks[key].sector !== specialistSector);
+        // Sector Specialist must hold <=30% of total wealth outside the sector.
+        const outsideBudget = Math.min(0.25, 0.30, stockBudget * 0.28);
+        const insideBudget = stockBudget - outsideBudget;
+        allocation = {
+            ...cappedSoftmaxAllocation(inside, scores, insideBudget,
+                profile.temperature, profile.maxStock),
+            ...cappedSoftmaxAllocation(outside, scores, outsideBudget,
+                profile.temperature, profile.maxStock)
+        };
+    } else {
+        allocation = cappedSoftmaxAllocation(keys, scores, stockBudget,
+            profile.temperature, profile.maxStock);
+    }
+    const invested = Object.values(allocation).reduce((sum, weight) => sum + weight, 0);
+    allocation.cash = Math.max(0, 1 - invested);
+    return allocation;
+}
 
 function getWealthManagerPlan() {
-    const eventId = getCurrentEventIdForManager();
-    const managerStyle = getManagerStyleForCharacter();
-
-    if (managerStyle === "specialist") {
-        return getSectorSpecialistManagerPlan(eventId);
-    }
-
-    if (wealthManagerPlans[eventId] && wealthManagerPlans[eventId][managerStyle]) {
-        return wealthManagerPlans[eventId][managerStyle];
-    }
-
-    return wealthManagerPlans.calm_market[managerStyle];
+    ensureMonthlyAnnouncements();
+    return generateRiskBasedPortfolio(
+        gameState.marketBeliefs,
+        getManagerStyleForCharacter(),
+        gameState.selectedSpecialistSector
+    );
 }
 
 
@@ -2540,129 +2226,6 @@ function getManagerStyleName() {
     return "Wealth Manager";
 }
 
-function getEventById(eventId) {
-    return events.find(function (eventItem) {
-        return eventItem.id === eventId;
-    });
-}
-
-
-function getEventSectorScore(eventId, sectorName) {
-    const eventItem = getEventById(eventId) || getCalmEventFallback();
-
-    if (!eventItem || !eventItem.effects || !eventItem.effects.sectors || !eventItem.effects.sectors[sectorName]) {
-        return 0;
-    }
-
-    const sectorEffect = eventItem.effects.sectors[sectorName];
-    let score = 0;
-
-    if (sectorEffect.sectorFactorChange !== undefined) {
-        score += sectorEffect.sectorFactorChange;
-    }
-
-    if (sectorEffect.muChange !== undefined) {
-        score += sectorEffect.muChange;
-    }
-
-    if (sectorEffect.sigmaMultiplier !== undefined && sectorEffect.sigmaMultiplier > 1.10) {
-        score -= 0.004;
-    }
-
-    if (sectorEffect.jumpMeanChange !== undefined) {
-        score += sectorEffect.jumpMeanChange * 0.25;
-    }
-
-    return score;
-}
-
-
-function addWeightToPlan(plan, stockKey, weight) {
-    if (!stockKey || !stocks[stockKey] || weight <= 0) {
-        return;
-    }
-
-    if (plan[stockKey] === undefined) {
-        plan[stockKey] = 0;
-    }
-
-    plan[stockKey] += weight;
-}
-
-
-function distributeWeightAcrossStocks(plan, stockKeys, totalWeight) {
-    const availableStockKeys = stockKeys.filter(function (stockKey) {
-        return stocks[stockKey] !== undefined;
-    });
-
-    if (availableStockKeys.length === 0 || totalWeight <= 0) {
-        return;
-    }
-
-    const equalWeight = totalWeight / availableStockKeys.length;
-
-    availableStockKeys.forEach(function (stockKey) {
-        addWeightToPlan(plan, stockKey, equalWeight);
-    });
-}
-
-
-function getSpecialistOtherStockKeys(specialistSector) {
-    const preferredOrder = [
-        "walmart",
-        "cocacola",
-        "mcdonalds",
-        "microsoft",
-        "visa",
-        "chevron",
-        "exxon",
-        "apple",
-        "jpmorgan",
-        "nvidia"
-    ];
-
-    return preferredOrder.filter(function (stockKey) {
-        return stocks[stockKey] && stocks[stockKey].sector !== specialistSector;
-    }).slice(0, 4);
-}
-
-
-function getSectorSpecialistManagerPlan(eventId) {
-    const specialistSector = gameState.selectedSpecialistSector || "Technology";
-    const sectorScore = getEventSectorScore(eventId, specialistSector);
-    const plan = {};
-
-    let specialistWeight = 0.45;
-    let nonSpecialistWeight = 0.25;
-    let cashWeight = 0.30;
-
-    if (sectorScore > 0.004) {
-        specialistWeight = 0.60;
-        nonSpecialistWeight = 0.25;
-        cashWeight = 0.15;
-    } else if (sectorScore < -0.004) {
-        specialistWeight = 0.20;
-        nonSpecialistWeight = 0.25;
-        cashWeight = 0.55;
-    }
-
-    distributeWeightAcrossStocks(
-        plan,
-        sectorStockMap[specialistSector] || [],
-        specialistWeight
-    );
-
-    distributeWeightAcrossStocks(
-        plan,
-        getSpecialistOtherStockKeys(specialistSector),
-        nonSpecialistWeight
-    );
-
-    plan.cash = cashWeight;
-
-    return plan;
-}
-
 function updateWealthManagerPanel() {
     const button = document.getElementById("wealth-manager-button");
     const status = document.getElementById("wealth-manager-status");
@@ -2672,6 +2235,11 @@ function updateWealthManagerPanel() {
     }
 
     const usedThisMonth = gameState.managerUsedMonths[gameState.month] === true;
+    if (gameState.portfolioLocked) {
+        button.disabled = true;
+        status.innerText = "Portfolio locked. The next step is the blind event draw.";
+        return;
+    }
     const estimatedFee = gameState.currentWealth * WEALTH_MANAGER_COMMISSION_RATE;
 
     if (usedThisMonth) {
@@ -2691,160 +2259,86 @@ function updateWealthManagerPanel() {
 }
 
 
-function getNormalizedStockWeights(targetWeights) {
-    const stockWeights = {};
-    let totalStockWeight = 0;
-
-    Object.keys(targetWeights).forEach(function (key) {
-        if (key === "cash") {
-            return;
-        }
-
-        if (!stocks[key]) {
-            return;
-        }
-
-        stockWeights[key] = targetWeights[key];
-        totalStockWeight += targetWeights[key];
-    });
-
-    if (totalStockWeight <= 0) {
-        return stockWeights;
-    }
-
-    Object.keys(stockWeights).forEach(function (stockKey) {
-        stockWeights[stockKey] = stockWeights[stockKey] / totalStockWeight;
-    });
-
-    return stockWeights;
-}
-
-
 function applyTargetWeightsToPortfolio(targetWeights) {
-    let availableWealth = gameState.currentWealth;
-    let weightsToUse = targetWeights;
-
-    if (gameState.selectedCharacter === "retiree") {
-        const character = getSelectedCharacter();
-
-        const requiredProtectedCash =
-            gameState.initialCapital * character.protectedCashRatio;
-
-        const maximumInvestmentFromCurrentWealth =
-            Math.max(0, gameState.currentWealth - requiredProtectedCash);
-
-        const maximumInvestmentFromInitialCapital =
-            gameState.initialCapital * (1 - character.protectedCashRatio);
-
-        availableWealth = Math.min(
-            maximumInvestmentFromCurrentWealth,
-            maximumInvestmentFromInitialCapital
-        );
-
-        weightsToUse = getNormalizedStockWeights(targetWeights);
-    }
-
-    Object.keys(stocks).forEach(function (stockKey) {
-        gameState.purchaseShares[stockKey] = 0;
+    Object.keys(stocks).forEach(key => gameState.purchaseShares[key] = 0);
+    const totalWealth = gameState.currentWealth;
+    Object.keys(stocks).forEach(key => {
+        const weight = Math.max(0, targetWeights[key] || 0);
+        gameState.purchaseShares[key] = Math.max(0,
+            Math.floor(totalWealth * weight / stocks[key].price));
     });
-
-    Object.keys(weightsToUse).forEach(function (key) {
-        if (key === "cash") {
-            return;
-        }
-
-        if (!stocks[key]) {
-            return;
-        }
-
-        const weight = weightsToUse[key];
-        const stock = stocks[key];
-        const targetValue = availableWealth * weight;
-        const shares = Math.floor(targetValue / stock.price);
-
-        gameState.purchaseShares[key] = Math.max(0, shares);
-    });
-
     gameState.remainingCash = calculateRemainingCash();
 }
 
 
 function applyWealthManagerPortfolio() {
+    if (gameState.portfolioLocked) {
+        alert("This month's portfolio has already been locked.");
+        return;
+    }
     if (gameState.selectedCharacter === null) {
         alert("Please choose an investor first.");
         return;
     }
-
     if (gameState.managerUsedMonths[gameState.month] === true) {
         alert("The wealth manager has already been used this month.");
         return;
     }
-
     if (gameState.selectedCharacter === "sector_specialist" && !gameState.selectedSpecialistSector) {
-        alert("Please choose one specialist sector before using the wealth manager.");
+        alert("Please choose your specialist sector first.");
         return;
     }
-
-    const currentEvent = gameState.currentEvent || getCalmEventFallback();
+    ensureMonthlyAnnouncements();
+    const plan = getWealthManagerPlan();
     const managerStyleName = getManagerStyleName();
     const commissionFee = gameState.currentWealth * WEALTH_MANAGER_COMMISSION_RATE;
-
-    const confirmManager = confirm(
+    const beliefs = gameState.marketBeliefs.slice();
+    const stateSummary = MARKET_STATES.map((s, i) =>
+        s.toUpperCase() + ": " + (100 * beliefs[i]).toFixed(1) + "%").join(" | ");
+    const approved = confirm(
         "Entrust your portfolio to the wealth manager?\n\n" +
         "Manager style: " + managerStyleName + "\n" +
-        "Current event: " + currentEvent.name + "\n" +
+        "Public-news market assessment: \n" + stateSummary + "\n" +
+        "Suggested cash: " + (plan.cash * 100).toFixed(1) + "%\n" +
         "Commission: " + formatMoney(commissionFee) +
         " (" + (WEALTH_MANAGER_COMMISSION_RATE * 100).toFixed(1) + "% of current wealth)\n\n" +
-        "The commission will be charged immediately and cannot be refunded."
+        "Future events and the true market state are UNKNOWN.\n" +
+        "The commission is charged immediately and cannot be refunded."
     );
-
-    if (!confirmManager) {
-        return;
-    }
-
+    if (!approved) return;
     gameState.currentWealth -= commissionFee;
     gameState.totalManagerFees += commissionFee;
     gameState.managerUsedMonths[gameState.month] = true;
-
-    const targetPlan = getWealthManagerPlan();
-
-    applyTargetWeightsToPortfolio(targetPlan);
-
+    // Recalculate the protected-cash threshold AFTER the fee for retiree role.
+    const finalPlan = getWealthManagerPlan();
+    applyTargetWeightsToPortfolio(finalPlan);
+    const roleViolation = getRolePortfolioViolation();
+    if (roleViolation !== null) {
+        // Defensive fallback: leave every dollar in cash if constraints cannot be met.
+        Object.keys(stocks).forEach(key => gameState.purchaseShares[key] = 0);
+        gameState.remainingCash = gameState.currentWealth;
+    }
     gameState.managerHistory.push({
         month: gameState.month,
-        eventId: currentEvent.id,
-        eventName: currentEvent.name,
         managerStyle: managerStyleName,
+        announcementIds: gameState.currentAnnouncements.map(a => a.id),
+        marketBeliefs: beliefs,
+        cashTarget: finalPlan.cash,
         commissionFee: commissionFee
     });
-
     refreshPurchasePage();
-
     const status = document.getElementById("wealth-manager-status");
-
     if (status) {
-        let managerMessage =
-            "Wealth manager applied: " +
-            managerStyleName +
-            ". Commission charged: " +
-            formatMoney(commissionFee) +
-            ".";
-
-        if (gameState.selectedCharacter === "sector_specialist") {
-            managerMessage +=
-                " Specialist sector: " +
-                gameState.selectedSpecialistSector +
-                ". Non-specialist sector exposure is controlled within the 30% rule.";
-        }
-
-        managerMessage +=
-            " You can continue directly or manually fine-tune the sliders.";
-
-        status.innerText = managerMessage;
+        status.innerText = "HMM-based " + managerStyleName +
+            " applied. Commission: " + formatMoney(commissionFee) +
+            ". Suggested cash: " + (finalPlan.cash * 100).toFixed(1) +
+            "%. You may manually fine-tune before locking your portfolio." +
+            (roleViolation ? " Role limits required an all-cash fallback." : "");
     }
 }
 
 function continueToPortfolioReview() {
+    if (gameState.portfolioLocked) return;
     const totalStockValue = calculateTotalStockValue();
     const remainingCash = calculateRemainingCash();
 
@@ -3077,21 +2571,35 @@ function renderPortfolioReview() {
 
 
 function goBackToInitialPurchase() {
+    if (gameState.portfolioLocked) {
+        alert("Your portfolio is locked for this month.");
+        return;
+    }
     renderInitialPurchasePage();
     showScreen("initial-purchase-screen");
 }
 
 
 function confirmInitialPortfolio() {
+    if (gameState.portfolioLocked) return;
     const roleViolation = getRolePortfolioViolation();
-
     if (roleViolation !== null) {
         alert(roleViolation);
         goBackToInitialPurchase();
         return;
     }
-
-    startMonthlySimulation();
+    if (calculateRemainingCash() < -0.001) {
+        alert("Your portfolio exceeds available funds.");
+        return;
+    }
+    if (!confirm("Lock your Month " + gameState.month + " portfolio?\n\n" +
+        "You will then draw a hidden event and cannot change your investments until next month.")) {
+        return;
+    }
+    gameState.remainingCash = calculateRemainingCash();
+    gameState.portfolioLocked = true;
+    gameState.lockedPortfolioMonth = gameState.month;
+    startEventSelection();
 }
 
 // -----------------------------
@@ -3205,21 +2713,18 @@ function generateEventChoices() {
 
 
 function startEventSelection() {
-    ensureMonthlyAnnouncements();
+    if (!gameState.portfolioLocked || gameState.lockedPortfolioMonth !== gameState.month) {
+        alert("Confirm and lock your investments before drawing a market event.");
+        return;
+    }
     if (gameState.eventSelected && gameState.currentEvent !== null) {
         renderLockedEventSelectionPage();
         showScreen("event-selection-screen");
         return;
     }
-
-    gameState.eventSelected = false;
-    gameState.currentEvent = null;
-
-    if (!Array.isArray(gameState.eventChoices) ||
-        gameState.eventChoices.length !== 4) {
+    if (!Array.isArray(gameState.eventChoices) || gameState.eventChoices.length !== 4) {
         gameState.eventChoices = generateEventChoices();
     }
-
     renderEventSelectionPage();
     showScreen("event-selection-screen");
 }
@@ -3277,38 +2782,26 @@ function getGameplayEventHint(eventItem) {
     }
 }
 
-function renderMarketAnnouncements() {
-    const container =
-        document.getElementById("market-announcement-list");
-
-    if (!container) {
-        return;
-    }
-
+function renderMarketAnnouncementsInto(container) {
+    if (!container) return;
     container.innerHTML = "";
-
-    const announcements = gameState.currentAnnouncements || [];
-
-    announcements.forEach(function (announcement, index) {
+    (gameState.currentAnnouncements || []).forEach((announcement, index) => {
         const card = document.createElement("div");
         card.className = "market-announcement-card";
-
         const label = document.createElement("div");
         label.className = "market-announcement-label";
         label.textContent = "MARKET REPORT " + (index + 1);
-
         const title = document.createElement("h4");
         title.textContent = announcement.title;
-
         const description = document.createElement("p");
         description.textContent = announcement.description;
-
-        card.appendChild(label);
-        card.appendChild(title);
-        card.appendChild(description);
-
+        card.append(label, title, description);
         container.appendChild(card);
     });
+}
+
+function renderMarketAnnouncements() {
+    renderMarketAnnouncementsInto(document.getElementById("market-announcement-list"));
 }
 
 function renderEventSelectionPage() {
@@ -3319,7 +2812,7 @@ function renderEventSelectionPage() {
     const resetButton = document.getElementById("event-reset-button");
 
     document.getElementById("event-selection-title").innerText =
-        "Month " + gameState.month + " Event Selection";
+        "Month " + gameState.month + " Blind Event Draw";
 
     document.getElementById("event-current-month").innerText =
         "Month " + gameState.month;
@@ -3330,9 +2823,9 @@ function renderEventSelectionPage() {
     resetButton.disabled = false;
 
     if (gameState.month === 1) {
-        continueButton.innerText = "BUILD INITIAL PORTFOLIO";
+        continueButton.innerText = "CONTINUE TO PRICE SIMULATION";
     } else {
-        continueButton.innerText = "ADJUST PORTFOLIO";
+        continueButton.innerText = "CONTINUE TO PRICE SIMULATION";
     }
 
     gameState.eventChoices.forEach(function (eventItem, index) {
@@ -3362,7 +2855,7 @@ function renderLockedEventSelectionPage() {
     const selectedEvent = gameState.currentEvent;
 
     document.getElementById("event-selection-title").innerText =
-        "Month " + gameState.month + " Event Locked";
+        "Month " + gameState.month + " Event Revealed";
 
     document.getElementById("event-current-month").innerText =
         "Month " + gameState.month;
@@ -3389,13 +2882,14 @@ function renderLockedEventSelectionPage() {
     resetButton.disabled = true;
 
     if (gameState.month === 1) {
-        continueButton.innerText = "BUILD INITIAL PORTFOLIO";
+        continueButton.innerText = "CONTINUE TO PRICE SIMULATION";
     } else {
-        continueButton.innerText = "ADJUST PORTFOLIO";
+        continueButton.innerText = "CONTINUE TO PRICE SIMULATION";
     }
 }
 
 function revealEventCard(index) {
+    if (!gameState.portfolioLocked || gameState.lockedPortfolioMonth !== gameState.month) return;
     if (gameState.eventSelected) {
         return;
     }
@@ -3452,12 +2946,16 @@ function resetEventSelection() {
 
 
 function goToInitialPurchase() {
-    if (!gameState.eventSelected || gameState.currentEvent === null) {
-        alert("Please choose one event card first.");
+    // Legacy function name retained for HTML backward compatibility.
+    continueAfterBlindEvent();
+}
+
+function continueAfterBlindEvent() {
+    if (!gameState.portfolioLocked || !gameState.eventSelected || !gameState.currentEvent) {
+        alert("First lock your portfolio and reveal one hidden event.");
         return;
     }
-
-    startInitialPurchase();
+    startMonthlySimulation();
 }
 // -----------------------------
 // Monthly Stock Simulation Page
@@ -3716,12 +3214,16 @@ function simulateMonthlyStockPrices() {
 
 
 function startMonthlySimulation() {
+    if (!gameState.portfolioLocked || !gameState.eventSelected || !gameState.currentEvent) {
+        alert("The investment portfolio must be locked and an event revealed first.");
+        return;
+    }
+    if (gameState.simulationStarted) return;
+    gameState.simulationStarted = true;
     gameState.simulationCompleted = false;
     gameState.gameOver = false;
     gameState.gameOverReason = "";
-
     simulateMonthlyStockPrices();
-
     renderMonthlySimulationPage();
     showScreen("monthly-simulation-screen");
     drawSimulationChart(0);
@@ -3757,12 +3259,13 @@ function renderMonthlySimulationPage() {
     if (gameState.month >= 12) {
         nextButton.innerText = "FINAL INVESTMENT SUMMARY";
     } else {
-        nextButton.innerText = "NEXT MONTH EVENT";
+        nextButton.innerText = "NEXT MONTH MARKET NEWS";
     }
 }
 
 
 function playSimulationAnimation() {
+    if (gameState.simulationCompleted || !gameState.simulationStarted) return;
     document.getElementById("start-simulation-button").disabled = true;
     document.getElementById("simulation-status-text").innerText =
         "Simulation running...";
@@ -3929,6 +3432,7 @@ function drawChartLegend(ctx, width, height) {
 
 
 function finishMonthlySimulation() {
+    if (gameState.simulationCompleted) return;
     gameState.simulationCompleted = true;
 
     const startValue = gameState.simulationPortfolioValues[0];
@@ -3969,7 +3473,7 @@ function finishMonthlySimulation() {
     } else if (gameState.month >= 12) {
         nextButton.innerText = "FINAL INVESTMENT SUMMARY";
     } else {
-        nextButton.innerText = "NEXT MONTH EVENT";
+        nextButton.innerText = "NEXT MONTH MARKET NEWS";
     }
 }
 
@@ -4016,10 +3520,10 @@ function checkRoleFailure(monthlyReturn, portfolioMaxDrawdown) {
     if (character.mustProfitEveryMonth && monthlyReturn < 0) {
         gameState.bankerLossMonths += 1;
 
-        if (gameState.bankerLossMonths > 3) {
+        if (gameState.bankerLossMonths > 4) {
             gameState.gameOver = true;
             gameState.gameOverReason =
-                "As a Banker, you are allowed to have at most 3 losing months. " +
+                "As a Banker, you are allowed to have at most 4 losing months. " +
                 "This month your portfolio return is " + formatPercent(monthlyReturn) + ". " +
                 "This is losing month number " + gameState.bankerLossMonths +
                 ", so your stability condition has been violated.";
@@ -4027,7 +3531,7 @@ function checkRoleFailure(monthlyReturn, portfolioMaxDrawdown) {
             document.getElementById("simulation-status-text").innerText =
                 "Simulation complete. Banker warning: this is losing month " +
                 gameState.bankerLossMonths +
-                " / 3. You can continue, but too many losing months may end the game.";
+                " / 4. You can continue, but too many losing months may end the game.";
         }
     }
 
@@ -4069,26 +3573,21 @@ function goToNextMonthEvent() {
         alert("Please finish the monthly simulation first.");
         return;
     }
-
-    if (gameState.gameOver) {
+    if (gameState.gameOver || gameState.month >= 12) {
         showFinalSummary();
         return;
     }
-
-    if (gameState.month >= 12) {
-        showFinalSummary();
-        return;
-    }
-
     gameState.month += 1;
     advanceMarketState();
     gameState.currentAnnouncements = [];
-
     gameState.currentEvent = null;
     gameState.eventChoices = [];
     gameState.eventSelected = false;
-
-    startEventSelection();
+    gameState.portfolioLocked = false;
+    gameState.lockedPortfolioMonth = null;
+    gameState.simulationStarted = false;
+    gameState.simulationCompleted = false;
+    showMonthlyMarketIntelligence();
 }
 
 // -----------------------------
@@ -4229,7 +3728,7 @@ function renderFinalRoleCheck() {
             box.innerHTML = `
     <strong>Target achieved.</strong><br>
     Required return: ${formatPercent(character.targetReturn)}<br>
-    Losing months used: ${gameState.bankerLossMonths} / 3<br>
+    Losing months used: ${gameState.bankerLossMonths} / 4<br>
     Your banker stability condition was successfully completed.
 `;
         } else if (gameState.selectedCharacter === "sector_specialist") {
@@ -4519,6 +4018,12 @@ function restartGame() {
         month: 1,
         currentMarketState: null,
         currentAnnouncements: [],
+    marketBeliefs: INITIAL_MARKET_PROBABILITIES.slice(),
+    marketBeliefMonth: null,
+    marketBeliefHistory: [],
+    portfolioLocked: false,
+    lockedPortfolioMonth: null,
+    simulationStarted: false,
         marketStateHistory: [],
         targetReturn: 0,
         mustProfitEveryMonth: false,

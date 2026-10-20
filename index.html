@@ -272,16 +272,35 @@
             <button onclick="goBackToMarketOverview()">BACK</button>
         </div>
 
+        <!-- Public market announcements: shown BEFORE each investment decision -->
+        <div id="market-intelligence-screen" class="screen">
+            <h2 id="intelligence-title">Month 1 Market Intelligence</h2>
+            <p class="page-intro">Study these two public announcements before you invest.
+                They provide imperfect signals about the hidden Bull, Bear, Calm, or Volatile
+                market regime. The future major event is still unknown.</p>
+            <div class="market-announcement-section">
+                <div class="market-announcement-heading">
+                    <h3>Public Market Announcements</h3>
+                    <p>The next major event will only be revealed <strong>after</strong> your portfolio is locked.</p>
+                </div>
+                <div id="intelligence-announcement-list" class="market-announcement-list"></div>
+            </div>
+            <div class="intelligence-notice">🔒 No major event has been revealed. Invest based on your assessment of the available information.</div>
+            <div class="button-row">
+                <button onclick="proceedFromIntelligence()">CONTINUE TO INVESTMENT</button>
+                <button id="intelligence-back-button" onclick="goBackToMarketOverview()">BACK TO MARKET</button>
+            </div>
+        </div>
+
         <!-- Event Selection Screen -->
         <div id="event-selection-screen" class="screen">
-            <h2 id="event-selection-title">Month 1 Event Selection</h2>
+            <h2 id="event-selection-title">Month 1 Blind Event Draw</h2>
 
 
             <p class="page-intro">
-                Read the market announcements to assess the current
-                economic environment. Then select one of four mystery
-                cards to reveal a major event that may affect stock prices.
-                The true market state remains hidden.
+                Your investments are now locked. Choose one of four face-down cards
+                without seeing the events inside. Only the revealed event will affect
+                this month’s stock price simulation. You cannot return to trade.
             </p>
 
 
@@ -293,7 +312,7 @@
 
                 <div class="event-header-card">
                     <h3>Rule</h3>
-                    <p>4 State-Dependent Mystery Events</p>
+                    <p>Blind draw after portfolio lock</p>
                 </div>
 
                 <div class="event-header-card highlight-card">
@@ -302,7 +321,7 @@
                 </div>
             </div>
 
-            <!-- Market Announcements -->
+            <!-- Already-public reports are visible only as background context. -->
             <div class="market-announcement-section">
                 <div class="market-announcement-heading">
                     <h3>Market Intelligence</h3>
@@ -340,11 +359,11 @@
             </div>
 
             <div class="button-row">
-                <button id="event-continue-button" onclick="goToInitialPurchase()" disabled>
-                    BUILD INITIAL PORTFOLIO
+                <button id="event-continue-button" onclick="continueAfterBlindEvent()" disabled>
+                    CONTINUE TO PRICE SIMULATION
                 </button>
-                <button id="event-reset-button" onclick="resetEventSelection()">VIEW SAME CARDS</button>
-                <button onclick="goBackToMarketOverview()">BACK TO MARKET</button>
+                <button id="event-reset-button" onclick="resetEventSelection()" title="Redisplay the same four hidden cards; does not draw new events">REFRESH CARD DISPLAY</button>
+                <span class="locked-portfolio-message">🔒 Portfolio locked — no further trading this month</span>
             </div>
         </div>
         <!-- Initial Stock Purchase Screen -->
@@ -380,14 +399,14 @@
                         <h3>Wealth Manager Service</h3>
                         <p>
                             Entrust your monthly portfolio allocation to a professional wealth manager.
-                            The manager will build an event-based portfolio according to your investor role
-                            and the current market event.
+                            The manager estimates hidden market probabilities from public news
+                            and uses risk-adjusted scores and your investor role to build a portfolio.
                         </p>
 
                         <div class="wealth-manager-tags">
-                            <span>Event-based allocation</span>
+                            <span>HMM news-based allocation</span>
                             <span>Role-based risk control</span>
-                            <span>Commission: 0.5%</span>
+                            <span>Commission: 0.1%</span>
                         </div>
 
                         <p id="wealth-manager-status" class="wealth-manager-status">
@@ -428,7 +447,7 @@
             <div class="button-row">
                 <button onclick="continueToPortfolioReview()">CONTINUE TO REVIEW</button>
                 <button onclick="resetInitialPurchase()">RESET</button>
-                <button onclick="goBackToMarketOverview()">BACK TO MARKET</button>
+                <button onclick="returnToMarketIntelligence()">BACK TO MARKET NEWS</button>
             </div>
         </div>
         <!-- Portfolio Review Screen -->
@@ -436,7 +455,7 @@
             <h2>Portfolio Review</h2>
 
             <p class="page-intro">
-                Review your initial portfolio before starting the game.
+                Review your portfolio before locking it for the upcoming market event.
                 This page shows your current holdings, stock value, remaining cash,
                 and sector allocation.
             </p>
@@ -493,7 +512,7 @@
 
             <div class="button-row">
                 <button onclick="goBackToInitialPurchase()">BACK TO EDIT</button>
-                <button onclick="confirmInitialPortfolio()">CONFIRM AND START GAME</button>
+                <button onclick="confirmInitialPortfolio()">CONFIRM &amp; LOCK PORTFOLIO</button>
             </div>
         </div>
         <!-- Monthly Stock Simulation Screen -->
@@ -702,6 +721,20 @@
                 </tbody></table></div>
                 <p>Regime effects are applied to expected return, volatility and the monthly market factor before the selected event effects. The existing 22-day sector jump-factor price simulation remains in use. These settings are illustrative game assumptions, not historical estimates.</p>
                 <p><strong>Regime adjustments:</strong> Bull: μ +0.004, σ ×0.95, market factor +0.012; Bear: μ −0.004, σ ×1.12, market factor −0.012; Calm: σ ×0.82; Volatile: μ −0.001, σ ×1.38.</p>
+                <h3 class="library-subtitle">Markov Chain Transition Probabilities</h3>
+                <p>Rows show the previous month and columns the next month, ordered Bull, Bear, Calm, Volatile. The first month starts with 25% probability for each state.</p>
+                <div class="library-table-wrapper"><table class="library-table"><thead><tr><th>From / To</th><th>Bull</th><th>Bear</th><th>Calm</th><th>Volatile</th></tr></thead><tbody>
+                <tr><td>Bull</td><td>65%</td><td>5%</td><td>20%</td><td>10%</td></tr><tr><td>Bear</td><td>10%</td><td>60%</td><td>10%</td><td>20%</td></tr>
+                <tr><td>Calm</td><td>20%</td><td>10%</td><td>60%</td><td>10%</td></tr><tr><td>Volatile</td><td>15%</td><td>25%</td><td>20%</td><td>40%</td></tr>
+                </tbody></table></div>
+                <h3 class="library-subtitle">Public Announcement Emission Probabilities</h3>
+                <p>There are 16 announcements, four per category. Two distinct reports are sampled with weighted selection without replacement, so the second draw is conditional on the first.</p>
+                <div class="library-table-wrapper"><table class="library-table"><thead><tr><th>State</th><th>Growth</th><th>Risk</th><th>Stable</th><th>Uncertainty</th></tr></thead><tbody>
+                <tr><td>Bull</td><td>60%</td><td>10%</td><td>20%</td><td>10%</td></tr><tr><td>Bear</td><td>10%</td><td>60%</td><td>10%</td><td>20%</td></tr>
+                <tr><td>Calm</td><td>15%</td><td>10%</td><td>60%</td><td>15%</td></tr><tr><td>Volatile</td><td>15%</td><td>20%</td><td>15%</td><td>50%</td></tr>
+                </tbody></table></div>
+                <p><strong>Decision order:</strong> Hidden state → public news → player/manager portfolio decision → lock portfolio → blind event reveal → 22-day price simulation.</p>
+
             </div>
             <div id="library-model-section" class="library-section">
                 <h3>1. Event-driven Sector Jump-Factor-GRW Model</h3>
@@ -840,11 +873,29 @@
                 <h3>4. Portfolio Decision and Wealth Manager</h3>
 
                 <p>
-                    The wealth manager does not change the stock price model. It only changes the player's
-                    portfolio allocation before the monthly simulation starts. Therefore, the mathematical
-                    model remains unchanged, while the investment decision becomes automated.
+                    The wealth manager uses public announcements and Markov-chain probabilities to estimate
+                    the hidden regime, score stocks by expected return and risk, and allocate capital by
+                    investor style. It changes only portfolio allocation, never the underlying price model.
+                    The actual regime and future major event are not disclosed to the manager.
                 </p>
 
+                <h3 class="library-subtitle">HMM Filtering &amp; Risk-Adjusted Portfolio</h3>
+                <p><strong>1. Prediction:</strong> π<sub>t</sub><sup>−</sup> = π<sub>t−1</sub> T.
+                    <strong>2. Exact news likelihood:</strong> L<sub>s</sub>(a,b) = w<sub>s</sub>(a) × w<sub>s</sub>(b) / (1 − w<sub>s</sub>(a)) for two distinct ordered announcements.
+                    <strong>3. Bayesian update:</strong> π<sub>t</sub>(s) ∝ π<sub>t</sub><sup>−</sup>(s) L<sub>s</sub>(a,b), normalised to sum to one.</p>
+                <p><strong>4. Expected monthly direction:</strong> r̂<sub>i</sub> = Σ<sub>s</sub> π<sub>t</sub>(s) [μ<sub>i</sub> + Δμ<sub>s</sub> + β<sub>i</sub> ΔM<sub>s</sub>].
+                    <strong>5. Risk proxy:</strong> σ̂<sub>i</sub><sup>2</sup> = Σ<sub>s</sub> π<sub>t</sub>(s) [ (σ<sub>i</sub> k<sub>s</sub>)<sup>2</sup> + (r<sub>i,s</sub> − r̂<sub>i</sub>)<sup>2</sup> ].</p>
+                <p><strong>6. Stock score:</strong> Score<sub>i</sub> = a<sub>r</sub> r̂<sub>i</sub> − a<sub>v</sub> σ̂<sub>i</sub> + a<sub>s</sub> Preference<sub>i</sub>.
+                    <strong>7. Cash target:</strong> clip(c<sub>0</sub> + 0.20 p<sub>Bear</sub> + 0.12 p<sub>Volatile</sub> − 0.08 p<sub>Bull</sub>, c<sub>min</sub>, c<sub>max</sub>).
+                    <strong>8. Stock weights:</strong> remaining stock budget is allocated using capped Softmax of the scores, with temperature τ.</p>
+                <p>Capital constraints are enforced: no leverage; Retiree keeps at least 50% of original capital as cash with a 30% single-stock cap; Sector Specialist keeps investment outside their specialist sector at or below 30% of wealth. Whole shares are purchased and remaining funds stay in cash. These are game assumptions, not statistically calibrated financial estimates. Event uncertainty is not explicitly priced into the manager's approximate score.</p>
+                <div class="library-table-wrapper"><table class="library-table"><thead><tr><th>Style</th><th>Return a<sub>r</sub></th><th>Risk a<sub>v</sub></th><th>Base Cash</th><th>Cash Range</th><th>τ</th></tr></thead><tbody>
+                <tr><td>Growth</td><td>1.00</td><td>0.35</td><td>15%</td><td>10–30%</td><td>0.020</td></tr>
+                <tr><td>Aggressive</td><td>1.30</td><td>0.15</td><td>10%</td><td>5–25%</td><td>0.012</td></tr>
+                <tr><td>Stability</td><td>0.80</td><td>0.85</td><td>25%</td><td>20–45%</td><td>0.035</td></tr>
+                <tr><td>Protection</td><td>0.60</td><td>1.20</td><td>40%</td><td>35–65%</td><td>0.050</td></tr>
+                <tr><td>Specialist</td><td>1.00</td><td>0.55</td><td>25%</td><td>15–45%</td><td>0.025</td></tr>
+                </tbody></table></div>
                 <div class="library-table-wrapper">
                     <table class="library-table">
                         <thead>
@@ -866,11 +917,26 @@
 
                             <tr>
                                 <td>Wealth Manager</td>
-                                <td>The system automatically builds an event-based portfolio according to the current
-                                    event and investor role.</td>
-                                <td>0.5% of current wealth per use</td>
+                                <td>The system applies HMM market inference and risk-based scoring, conditioned on
+                                    publicly observed announcements and the investor role.</td>
+                                <td>0.1% of current wealth per use</td>
                                 <td>Represents delegated professional investment management.</td>
                             </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="library-subtitle">Role Victory Targets and Failure Rules (Balanced V4)</h3>
+                <p>Victory is assessed after up to 12 simulated months. Returns are measured against each investor's initial capital. The balance targets below are game-design thresholds, not real-world expected returns.</p>
+                <div class="library-table-wrapper">
+                    <table class="library-table">
+                        <thead><tr><th>Investor</th><th>Final Return Target</th><th>Additional Restriction</th></tr></thead>
+                        <tbody>
+                            <tr><td>College Student</td><td>15%</td><td>No early loss-month failure.</td></tr>
+                            <tr><td>Entrepreneur</td><td>25%</td><td>No early loss-month failure.</td></tr>
+                            <tr><td>Banker</td><td>15%</td><td>At most 4 losing months; the fifth losing month causes early Game Over.</td></tr>
+                            <tr><td>Retiree</td><td>3%</td><td>At least 50% of initial capital stays in cash; each stock is capped at 30% of wealth.</td></tr>
+                            <tr><td>Sector Specialist</td><td>15%</td><td>At most 30% of total wealth invested outside the chosen specialist sector.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -897,14 +963,13 @@
                             <tr>
                                 <td>Entrepreneur</td>
                                 <td>Aggressive Manager</td>
-                                <td>Uses more concentrated positions and takes higher risk when events create
-                                    opportunities.</td>
+                                <td>Uses a stronger return preference, lower risk penalty and more concentrated positions.</td>
                             </tr>
 
                             <tr>
                                 <td>Banker</td>
                                 <td>Stability Manager</td>
-                                <td>Balances event opportunities with stable stocks and cash to reduce losing months.
+                                <td>Uses stronger risk penalties and larger cash reserves to reduce exposure.
                                 </td>
                             </tr>
 
@@ -936,9 +1001,11 @@
                     <div>
                         <h4>Four Event Cards Each Month</h4>
                         <p>
-                            Each month has two public announcements and four mystery event cards. Both are sampled probabilistically based on the hidden market state. No Major Event is possible in every state; its probability is not fixed at 1/4.
-                            The other events are not forced to be positive or negative; they are randomly selected from
-                            the event pool.
+                            First, two public announcements are shown and the player invests. Only after the
+                            portfolio is confirmed and locked do four face-down cards appear. Their event types
+                            depend on the hidden regime. The player chooses one without seeing its content;
+                            there is no redraw or trade adjustment afterwards. No Major Event remains possible
+                            in every regime, and repeated cards are allowed.
                         </p>
                     </div>
                 </div>
@@ -1018,9 +1085,9 @@
                 <h3 class="library-subtitle">Why Commission Is Included</h3>
 
                 <p>
-                    The manager can make strong event-based decisions, so a commission is added to balance the game.
-                    Each use reduces current wealth by 0.5%. This creates a trade-off:
-                    the manager provides professional allocation, but frequent use reduces final return.
+                    The HMM-based manager can provide systematic probabilistic and risk-based recommendations,
+                    but it cannot predict the actual hidden regime or upcoming event with certainty. Each use
+                    costs 0.1% of current wealth (once per month); frequent use reduces final return.
                 </p>
             </div>
 
@@ -1037,13 +1104,13 @@
                 <div>
                     <h2>How to Play</h2>
                     <p>
-                        Choose an investor role, read market events, build or delegate your portfolio,
-                        and try to reach your one-year investment target.
+                        Choose an investor role, interpret market news, build and lock your portfolio,
+                        then draw an unknown event and evaluate your investment outcome.
                     </p>
                 </div>
             </div>
 
-            <div class="how-panel"><h3>Read the Signals, Not the Answer</h3><p>Every month begins with two public market announcements. They are probabilistic hints about a hidden Bull, Bear, Calm or Volatile regime. Use them to judge risk, then choose one of four mystery major-event cards. The revealed event influences this month’s stock parameters; the announcements themselves do not. Market regimes change between months according to a Markov chain.</p><p>The four cards may contain repeated events. Returning to the event screen does not generate a new draw. Continue through portfolio allocation, 22 trading days and the next month until 12 months or an early failure.</p></div>
+            <div class="how-panel"><h3>Invest Before the Unknown Event</h3><p>Every month begins with two public announcements generated under a hidden Bull, Bear, Calm, or Volatile regime. Use these imperfect clues to choose stocks or consult the HMM-based wealth manager. <strong>Only after you confirm and lock your portfolio</strong> do four face-down event cards appear.</p><p>Choose one unknown card to reveal the market event. It cannot be redrawn, and you cannot adjust your holdings until the following month. The chosen event changes stock simulation parameters, while announcements themselves do not. The 22-day market simulation then determines the outcome. Four event cards may contain duplicates.</p></div>
             <div class="how-flow-grid">
                 <div class="how-flow-card">
                     <div class="how-step-number">1</div>
@@ -1069,40 +1136,29 @@
                 <div class="how-flow-card">
                     <div class="how-step-number">3</div>
                     <div class="how-step-icon">🎴</div>
-                    <h3>Draw an Event</h3>
-                    <p>
-                        Every month, four event cards appear. Four mystery cards are generated from probabilities that depend on a hidden market state. Read two public announcements, then pick one card. A revealed event cannot be changed.
-                    </p>
+                    <h3>Read Market News &amp; Invest</h3>
+                    <p>Two public announcements help you assess the hidden market. Construct your portfolio without knowing the coming major event.</p>
                 </div>
 
                 <div class="how-flow-card">
                     <div class="how-step-number">4</div>
                     <div class="how-step-icon">💼</div>
-                    <h3>Build Your Portfolio</h3>
-                    <p>
-                        After the event is revealed, adjust your portfolio manually.
-                        You can buy stocks, sell stocks, or keep part of your wealth as cash.
-                    </p>
+                    <h3>Confirm &amp; Lock Portfolio</h3>
+                    <p>Review your stock positions and available cash. Once confirmed, your portfolio is locked until the next month.</p>
                 </div>
 
                 <div class="how-flow-card">
                     <div class="how-step-number">5</div>
                     <div class="how-step-icon">🧑‍💼</div>
-                    <h3>Use Wealth Manager</h3>
-                    <p>
-                        You may entrust the portfolio to a professional wealth manager.
-                        The manager creates an event-based allocation, but charges a 0.5% commission each time.
-                    </p>
+                    <h3>Draw an Unknown Event</h3>
+                    <p>After locking, select one of four face-down cards. The revealed major event cannot be changed and may affect future stock prices.</p>
                 </div>
 
                 <div class="how-flow-card">
                     <div class="how-step-number">6</div>
                     <div class="how-step-icon">📈</div>
-                    <h3>Run Simulation</h3>
-                    <p>
-                        The model simulates 22 trading days for the current month.
-                        Your stock prices, portfolio value, return, and drawdown are updated.
-                    </p>
+                    <h3>Run Simulation &amp; Review</h3>
+                    <p>Simulate 22 trading days. Review your portfolio return and drawdown, then repeat the news-to-investment cycle next month.</p>
                 </div>
             </div>
 
@@ -1111,19 +1167,18 @@
                     <h3>Monthly Game Cycle</h3>
 
                     <div class="cycle-line">
-                        <span>4 Event Cards</span>
+                        <span>2 Market Reports</span>
                         <span>→</span>
-                        <span>Reveal Event</span>
+                        <span>Invest &amp; Lock</span>
                         <span>→</span>
-                        <span>Invest</span>
+                        <span>Blind Event Draw</span>
                         <span>→</span>
                         <span>Simulate</span>
                     </div>
 
                     <p>
-                        The event gives an industry-level hint. It may say that technology, finance,
-                        energy, or consumer industries could benefit or suffer, but it does not directly
-                        tell you the perfect stock choice.
+                        The announcements provide imperfect signals, not a guaranteed forecast. You must commit
+                        to an investment before the major event is revealed, so risk management matters.
                     </p>
 
                     <div class="example-box">
@@ -1140,23 +1195,23 @@
                     <div class="role-mini-list">
                         <div>
                             <strong>🎓 College Student</strong>
-                            <span>Initial capital: $5,000. Target return: 20%. No early failure rule.</span>
+                            <span>Initial capital: $5,000. Target return: 15%. No early failure rule.</span>
                         </div>
 
                         <div>
                             <strong>💼 Entrepreneur</strong>
-                            <span>Initial capital: $40,000. Target return: 40%. Aggressive growth is needed.</span>
+                            <span>Initial capital: $40,000. Target return: 25%. Aggressive growth is needed.</span>
                         </div>
 
                         <div>
                             <strong>🏦 Banker</strong>
-                            <span>Initial capital: $50,000. Target return: 25%. More than 3 losing months causes early
+                            <span>Initial capital: $50,000. Target return: 15%. More than 4 losing months causes early
                                 Game Over.</span>
                         </div>
 
                         <div>
                             <strong>👴 Retiree</strong>
-                            <span>Initial capital: $30,000. Target return: 5%. No early Game Over, but no single stock
+                            <span>Initial capital: $30,000. Target return: 3%. No early Game Over, but no single stock
                                 can exceed 30% of total wealth and at least 50% of initial capital must be kept as
                                 cash.</span>
                         </div>
@@ -1164,7 +1219,7 @@
                         <div>
                             <strong>🧭 Sector Specialist</strong>
                             <span>
-                                Initial capital: $30,000. Target return: 30%.
+                                Initial capital: $30,000. Target return: 15%.
                                 Choose one specialist sector. Total investment in other sectors cannot exceed 30% of
                                 current total wealth.
                             </span>
@@ -1178,13 +1233,13 @@
                     <h3>Manual Investing</h3>
 
                     <p>
-                        Manual investing gives you full control. You can react to the revealed event,
-                        choose stocks by sector, and decide how much cash to keep.
+                        Manual investing gives you full control. Interpret public market news,
+                        choose stocks by sector, and decide how much cash to keep before the event is known.
                     </p>
 
                     <div class="example-box">
                         Manual mode has no commission. However, you must make the allocation decision yourself.
-                        This mode is suitable if you want to test your own event-reading strategy.
+                        This mode is suitable for testing your own market-signal interpretation and risk strategy.
                     </div>
                 </div>
 
@@ -1192,13 +1247,14 @@
                     <h3>Wealth Manager Service</h3>
 
                     <p>
-                        The wealth manager automatically builds a portfolio according to your role and the current
-                        event.
-                        It can be strong because it uses event-specific allocation plans.
+                        The wealth manager applies Hidden Markov Model (HMM) filtering to the same two public
+                        announcements you see, estimates the probabilities of four market regimes, then allocates
+                        capital based on expected returns, volatility, your role and cash protection rules.
+                        It does not know the true market state or which major event will be drawn.
                     </p>
 
                     <div class="manager-fee-box">
-                        Commission: 0.5% of current wealth per use
+                        Commission: 0.1% of current wealth per use
                     </div>
 
                     <p>
@@ -1212,16 +1268,16 @@
                 <h3>Winning Tips</h3>
 
                 <div class="strategy-chip-row">
-                    <div class="strategy-chip">Read the industry hint</div>
-                    <div class="strategy-chip">Match events with sectors</div>
+                    <div class="strategy-chip">Analyse public market reports</div>
+                    <div class="strategy-chip">Diversify before unknown events</div>
                     <div class="strategy-chip">Keep cash in risky months</div>
                     <div class="strategy-chip">Use manager when unsure</div>
                     <div class="strategy-chip">Watch role failure rules</div>
                 </div>
 
                 <p>
-                    The game is not pure luck. Events change model parameters, and your portfolio decision
-                    determines how strongly those changes affect your final wealth.
+                    Market news helps you form probabilistic expectations, but unknown major events create
+                    genuine investment risk. Your allocation determines how the shocks affect your wealth.
                 </p>
             </div>
 
